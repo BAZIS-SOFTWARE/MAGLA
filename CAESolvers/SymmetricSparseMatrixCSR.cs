@@ -5,111 +5,115 @@ namespace CAESolvers
     using System.Linq;
 
     /// <summary>
-    /// Разреженная симметричная матрица (A[i,j] == A[j,i]) в формате CSR,
-    /// хранящая только верхний треугольник (row &lt;= col) вместе с диагональю.
-    /// Подходит для задач упругости, теплопроводности и т.п., где матрица
-    /// жёсткости симметрична, и экономит примерно вдвое память и число
-    /// операций по сравнению с общим <see cref="SparseMatrixCSR"/>.
-    ///
-    /// ВАЖНО: индексы (row, col) в <see cref="AddToElement"/> / this[,]
-    /// нормализуются внутри класса (row, col) -> (min, max), поэтому
-    /// каждый физический вклад нужно добавлять РОВНО ОДИН РАЗ — не нужно
-    /// (и нельзя) отдельно добавлять "зеркальный" вклад для (col, row),
-    /// иначе значение задвоится. Если локальная матрица элемента сама
-    /// симметрична (как обычно в МКЭ), при сборке добавляйте внедиагональный
-    /// вклад один раз, а не для обеих сторон пары индексов.
+    /// Накопитель вкладов для сборки <see cref="SymmetricSparseMatrixCSR"/>
+    /// (аналог K[i,j] += local[i,j] при сборке МКЭ). Индексы (row, col)
+    /// нормализуются к (min, max), поэтому каждый физический вклад нужно
+    /// добавлять РОВНО ОДИН РАЗ — не нужно (и нельзя) отдельно добавлять
+    /// "зеркальный" вклад для (col, row), иначе значение задвоится.
+    /// Когда сборка завершена, <see cref="Build"/> строит готовую матрицу.
+    /// </summary>
+    public class SymmetricSparseMatrixCSRBuilder
+    {
+        private readonly Dictionary<MatrixPosition, double> buffer = new Dictionary<MatrixPosition, double>();
+
+        private readonly int size;
+
+        public SymmetricSparseMatrixCSRBuilder(int size)
+        {
+            this.size = size;
+        }
+
+        public void AddToElement(int row, int col, double value)
+        {
+            if (row < 0 || row >= size || col < 0 || col >= size)
+                throw new IndexOutOfRangeException($"Индексы вне диапазона: ({row}, {col})");
+
+            Normalize(ref row, ref col);
+
+            var position = new MatrixPosition(row, col);
+            buffer.TryGetValue(position, out double existing);
+            buffer[position] = existing + value;
+        }
+
+        private static void Normalize(ref int row, ref int col)
+        {
+            if (row > col)
+            {
+                int tmp = row;
+                row = col;
+                col = tmp;
+            }
+        }
+
+        /// <summary>
+        /// Строит готовую матрицу из накопленных вкладов.
+        /// </summary>
+        public SymmetricSparseMatrixCSR Build()
+        {
+            var elements = buffer.Select(kv => new MatrixEntry(kv.Key, kv.Value));
+            return new SymmetricSparseMatrixCSR(size, elements);
+        }
+    }
+
+    /// <summary>
+    /// Разреженная неизменяемая симметричная матрица (A[i,j] == A[j,i]) в
+    /// формате CSR, хранящая только верхний треугольник (row &lt;= col)
+    /// вместе с диагональю. Подходит для задач упругости, теплопроводности
+    /// и т.п., где матрица жёсткости симметрична, и экономит примерно вдвое
+    /// память и число операций по сравнению с общим <see cref="SparseMatrixCSR"/>.
+    /// Строится один раз из координатного формата (см.
+    /// <see cref="SymmetricSparseMatrixCSRBuilder"/> для инкрементальной
+    /// сборки с накоплением вкладов).
     /// </summary>
     public class SymmetricSparseMatrixCSR
     {
-        private double[] values;      // Значения хранимой половины (row <= col)
-        private int[] colIndices;     // Индексы столбцов
-        private int[] rowPointers;    // Указатели на начало строк
-
-        private Dictionary<(int row, int col), double> assemblyBuffer;
+        private readonly double[] values;      // Значения хранимой половины (row <= col)
+        private readonly int[] colIndices;     // Индексы столбцов
+        private readonly int[] rowPointers;    // Указатели на начало строк
+        private readonly int[] diagonalIndices; // diagonalIndices[row] -> позиция A[row,row], либо -1
 
         private readonly int size;
-        private int nonZeroCount;
-        private bool isFinalized;
+        private readonly int nonZeroCount;
 
         private const double Tolerance = 1e-15;
 
-        public SymmetricSparseMatrixCSR(int size)
+        /// <summary>
+        /// Строит матрицу из списка вкладов в координатном формате (COO).
+        /// Индексы каждого вклада нормализуются к (min, max), повторяющиеся
+        /// нормализованные (Row, Col) суммируются.
+        /// </summary>
+        public SymmetricSparseMatrixCSR(int size, IEnumerable<MatrixEntry> elements)
         {
             this.size = size;
-            assemblyBuffer = new Dictionary<(int, int), double>();
-            isFinalized = false;
-        }
 
-        /// <summary>
-        /// Построение сразу из списка вкладов (координатный формат).
-        /// Повторяющиеся нормализованные (row, col) суммируются.
-        /// </summary>
-        public SymmetricSparseMatrixCSR(int size, IEnumerable<(int row, int col, double value)> elements)
-            : this(size)
-        {
-            foreach (var e in elements)
-                AddToElement(e.row, e.col, e.value);
-
-            FinalizeAssembly();
-        }
-
-        /// <summary>
-        /// Добавляет вклад к элементу матрицы (аналог K[i,j] += local[i,j] при сборке МКЭ).
-        /// (row, col) нормализуются к (min, max) — добавлять вклад нужно один раз,
-        /// не дублируя его для переставленных индексов.
-        /// </summary>
-        public void AddToElement(int row, int col, double value)
-        {
-            CheckBounds(row, col);
-            Normalize(ref row, ref col);
-
-            if (!isFinalized)
+            var normalized = elements.Select(e =>
             {
-                assemblyBuffer.TryGetValue((row, col), out double existing);
-                assemblyBuffer[(row, col)] = existing + value;
-                return;
-            }
+                int row = e.Row;
+                int col = e.Col;
+                if (row > col)
+                {
+                    int tmp = row;
+                    row = col;
+                    col = tmp;
+                }
 
-            int index = FindIndex(row, col);
-            if (index < 0)
-                throw new InvalidOperationException(
-                    $"Позиция ({row}, {col}) отсутствует в структуре разреженности. " +
-                    "После FinalizeAssembly() можно изменять только уже существующие " +
-                    "ненулевые элементы — включите эту позицию в сборку заранее.");
+                return new MatrixEntry(row, col, e.Value);
+            });
 
-            values[index] += value;
-        }
+            var byRow = normalized
+                .GroupBy(e => e.Position)
+                .Select(g => new MatrixEntry(g.Key, g.Sum(e => e.Value)))
+                .Where(e => Math.Abs(e.Value) > Tolerance)
+                .GroupBy(e => e.Row)
+                .ToDictionary(g => g.Key, g => g.OrderBy(e => e.Col).ToList());
 
-        /// <summary>
-        /// Завершает сборку: строит компактные CSR-массивы (только верхний треугольник)
-        /// из накопленного буфера и фиксирует структуру разреженности.
-        /// </summary>
-        public void FinalizeAssembly()
-        {
-            if (isFinalized)
-                throw new InvalidOperationException("Матрица уже финализирована.");
-
-            var elements = assemblyBuffer
-                .Where(kv => Math.Abs(kv.Value) > Tolerance)
-                .Select(kv => (kv.Key.row, kv.Key.col, kv.Value))
-                .ToList();
-
-            BuildFromCoordinateFormat(elements);
-
-            assemblyBuffer = null;
-            isFinalized = true;
-        }
-
-        private void BuildFromCoordinateFormat(List<(int row, int col, double value)> elements)
-        {
-            var byRow = elements
-                .GroupBy(e => e.row)
-                .ToDictionary(g => g.Key, g => g.OrderBy(e => e.col).ToList());
-
-            nonZeroCount = elements.Count;
+            nonZeroCount = byRow.Sum(g => g.Value.Count);
             values = new double[nonZeroCount];
             colIndices = new int[nonZeroCount];
             rowPointers = new int[size + 1];
+            diagonalIndices = new int[size];
+            for (int i = 0; i < size; i++)
+                diagonalIndices[i] = -1;
 
             int currentIndex = 0;
             for (int row = 0; row < size; row++)
@@ -120,8 +124,12 @@ namespace CAESolvers
                 {
                     foreach (var item in items)
                     {
-                        values[currentIndex] = item.value;
-                        colIndices[currentIndex] = item.col;
+                        values[currentIndex] = item.Value;
+                        colIndices[currentIndex] = item.Col;
+
+                        if (item.Col == row)
+                            diagonalIndices[row] = currentIndex;
+
                         currentIndex++;
                     }
                 }
@@ -131,9 +139,29 @@ namespace CAESolvers
         }
 
         /// <summary>
-        /// Прямой доступ к элементу матрицы по глобальным индексам (в любом порядке —
-        /// индексы нормализуются). Запись после финализации возможна только
-        /// в уже существующую ненулевую позицию.
+        /// Прибавляет значение к уже существующей ненулевой позиции матрицы
+        /// (например, при повторной сборке на новой итерации решателя).
+        /// (row, col) нормализуются к (min, max). Новую ненулевую позицию
+        /// завести нельзя — структура разреженности зафиксирована при построении.
+        /// </summary>
+        public void AccumulateAt(int row, int col, double value)
+        {
+            CheckBounds(row, col);
+            Normalize(ref row, ref col);
+
+            int index = FindIndex(row, col);
+            if (index < 0)
+                throw new InvalidOperationException(
+                    $"Позиция ({row}, {col}) отсутствует в структуре разреженности. " +
+                    "Включите эту позицию в сборку через SymmetricSparseMatrixCSRBuilder заранее.");
+
+            values[index] += value;
+        }
+
+        /// <summary>
+        /// Прямой доступ к элементу матрицы по глобальным индексам (в любом
+        /// порядке — индексы нормализуются). Запись возможна только в уже
+        /// существующую ненулевую позицию.
         /// </summary>
         public double this[int row, int col]
         {
@@ -141,9 +169,6 @@ namespace CAESolvers
             {
                 CheckBounds(row, col);
                 Normalize(ref row, ref col);
-
-                if (!isFinalized)
-                    return assemblyBuffer.TryGetValue((row, col), out double v) ? v : 0.0;
 
                 int index = FindIndex(row, col);
                 return index >= 0 ? values[index] : 0.0;
@@ -153,16 +178,10 @@ namespace CAESolvers
                 CheckBounds(row, col);
                 Normalize(ref row, ref col);
 
-                if (!isFinalized)
-                {
-                    assemblyBuffer[(row, col)] = value;
-                    return;
-                }
-
                 int index = FindIndex(row, col);
                 if (index < 0)
                     throw new InvalidOperationException(
-                        $"Позиция ({row}, {col}) отсутствует в структуре разреженности после финализации.");
+                        $"Позиция ({row}, {col}) отсутствует в структуре разреженности.");
 
                 values[index] = value;
             }
@@ -187,9 +206,13 @@ namespace CAESolvers
         /// <summary>
         /// Бинарный поиск нормализованной позиции (row &lt;= col) в отсортированном
         /// сегменте строки. Возвращает -1, если элемент структурно нулевой.
+        /// Диагональ (row == col) отдаётся за O(1) через diagonalIndices.
         /// </summary>
         private int FindIndex(int row, int col)
         {
+            if (row == col)
+                return diagonalIndices[row];
+
             int lo = rowPointers[row];
             int hi = rowPointers[row + 1] - 1;
 
@@ -206,14 +229,27 @@ namespace CAESolvers
         }
 
         /// <summary>
+        /// Диагональный элемент A[row,row] за O(1) — без бинарного поиска.
+        /// Удобно для итерационных решателей и предобуславливателей
+        /// (Якоби, Гаусс-Зейдель, SSOR, диагональное масштабирование),
+        /// которые обращаются к диагонали на каждой итерации.
+        /// </summary>
+        public double GetDiagonal(int row)
+        {
+            if (row < 0 || row >= size)
+                throw new IndexOutOfRangeException($"Индекс строки {row} вне диапазона");
+
+            int index = diagonalIndices[row];
+            return index >= 0 ? values[index] : 0.0;
+        }
+
+        /// <summary>
         /// Умножение матрицы на вектор. Поскольку хранится только верхний
         /// треугольник, каждый внедиагональный элемент даёт вклад сразу
         /// в две позиции результата — в свою строку и в симметричную.
         /// </summary>
         public double[] Multiply(double[] vector)
         {
-            RequireFinalized();
-
             if (vector.Length != size)
                 throw new ArgumentException($"Размер вектора {vector.Length} не соответствует размеру матрицы {size}");
 
@@ -247,8 +283,6 @@ namespace CAESolvers
         /// </summary>
         public Dictionary<int, double> GetRow(int row)
         {
-            RequireFinalized();
-
             if (row < 0 || row >= size)
                 throw new IndexOutOfRangeException($"Индекс строки {row} вне диапазона");
 
@@ -270,28 +304,15 @@ namespace CAESolvers
             return rowElements;
         }
 
-        public int NonZeroCount => isFinalized
-            ? nonZeroCount
-            : assemblyBuffer.Count(kv => Math.Abs(kv.Value) > Tolerance);
+        public int NonZeroCount => nonZeroCount;
 
         public int Size => size;
-
-        public bool IsFinalized => isFinalized;
 
         public bool IsZero(int row, int col)
         {
             CheckBounds(row, col);
             Normalize(ref row, ref col);
-
-            return !isFinalized
-                ? !assemblyBuffer.ContainsKey((row, col)) || Math.Abs(assemblyBuffer[(row, col)]) <= Tolerance
-                : FindIndex(row, col) < 0;
-        }
-
-        private void RequireFinalized()
-        {
-            if (!isFinalized)
-                throw new InvalidOperationException("Матрица не финализирована — вызовите FinalizeAssembly() после сборки.");
+            return FindIndex(row, col) < 0;
         }
 
         /// <summary>
@@ -313,8 +334,6 @@ namespace CAESolvers
         /// </summary>
         public void PrintCSR()
         {
-            RequireFinalized();
-
             Console.WriteLine("Symmetric CSR Representation (хранится только верхний треугольник):");
             Console.WriteLine($"Size: {size}, NonZero (в хранимой половине): {nonZeroCount}");
             Console.WriteLine($"RowPointers: [{string.Join(", ", rowPointers)}]");

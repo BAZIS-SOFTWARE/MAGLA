@@ -1,13 +1,12 @@
 using System;
-using System.Linq;
 using CAESolvers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Tests
 {
     /// <summary>
-    /// Тесты на сборку (накопление вкладов) и доступ по глобальным индексам
-    /// для SparseMatrixCSR.
+    /// Тесты на сборку (через SparseMatrixCSRBuilder) и доступ по глобальным
+    /// индексам для готовой SparseMatrixCSR.
     /// </summary>
     [TestClass]
     public class SparseMatrixCSRTests
@@ -18,21 +17,20 @@ namespace Tests
         // сложиться из двух элементов: k + k = 2k.
         private static SparseMatrixCSR BuildTwoElementBarStiffness(double k)
         {
-            var matrix = new SparseMatrixCSR(3, 3);
+            var builder = new SparseMatrixCSRBuilder(3, 3);
 
             void AddElementStiffness(int n0, int n1)
             {
-                matrix.AddToElement(n0, n0, k);
-                matrix.AddToElement(n0, n1, -k);
-                matrix.AddToElement(n1, n0, -k);
-                matrix.AddToElement(n1, n1, k);
+                builder.AddToElement(n0, n0, k);
+                builder.AddToElement(n0, n1, -k);
+                builder.AddToElement(n1, n0, -k);
+                builder.AddToElement(n1, n1, k);
             }
 
             AddElementStiffness(0, 1); // элемент 1: узлы 0-1
             AddElementStiffness(1, 2); // элемент 2: узлы 1-2
 
-            matrix.FinalizeAssembly();
-            return matrix;
+            return builder.Build();
         }
 
         [TestMethod]
@@ -62,16 +60,38 @@ namespace Tests
         [TestMethod]
         public void Assembly_CancellingContributions_AreTreatedAsZero()
         {
-            var matrix = new SparseMatrixCSR(2, 2);
+            var builder = new SparseMatrixCSRBuilder(2, 2);
 
-            matrix.AddToElement(0, 1, 3.0);
-            matrix.AddToElement(0, 1, -3.0); // суммарный вклад равен нулю
+            builder.AddToElement(0, 1, 3.0);
+            builder.AddToElement(0, 1, -3.0); // суммарный вклад равен нулю
 
-            matrix.FinalizeAssembly();
+            var matrix = builder.Build();
 
             Assert.AreEqual(0.0, matrix[0, 1], 1e-12);
             Assert.IsTrue(matrix.IsZero(0, 1));
             Assert.AreEqual(0, matrix.NonZeroCount);
+        }
+
+        [TestMethod]
+        public void GetDiagonal_ReturnsDiagonalValuesForEachRow()
+        {
+            const double k = 2.5;
+            var matrix = BuildTwoElementBarStiffness(k);
+
+            Assert.AreEqual(k, matrix.GetDiagonal(0), 1e-12);
+            Assert.AreEqual(2 * k, matrix.GetDiagonal(1), 1e-12);
+            Assert.AreEqual(k, matrix.GetDiagonal(2), 1e-12);
+        }
+
+        [TestMethod]
+        public void GetDiagonal_StructurallyZeroDiagonal_ReturnsZero()
+        {
+            var builder = new SparseMatrixCSRBuilder(2, 2);
+            builder.AddToElement(0, 1, 5.0); // диагональ строки 0 не участвует в сборке
+
+            var matrix = builder.Build();
+
+            Assert.AreEqual(0.0, matrix.GetDiagonal(0), 1e-12);
         }
 
         [TestMethod]
@@ -105,54 +125,44 @@ namespace Tests
         [TestMethod]
         public void Indexer_OutOfRangeThrows()
         {
-            var matrix = new SparseMatrixCSR(3, 3);
-            matrix.FinalizeAssembly();
+            var matrix = new SparseMatrixCSRBuilder(3, 3).Build();
 
             Assert.ThrowsException<IndexOutOfRangeException>(() => { var _ = matrix[3, 0]; });
             Assert.ThrowsException<IndexOutOfRangeException>(() => { var _ = matrix[0, -1]; });
         }
 
         [TestMethod]
-        public void AddToElement_AfterFinalize_UpdatesExistingPositionInPlace()
+        public void AccumulateAt_UpdatesExistingPositionInPlace()
         {
-            var matrix = new SparseMatrixCSR(2, 2);
-            matrix.AddToElement(0, 0, 5.0);
-            matrix.FinalizeAssembly();
+            var builder = new SparseMatrixCSRBuilder(2, 2);
+            builder.AddToElement(0, 0, 5.0);
+            var matrix = builder.Build();
 
-            matrix.AddToElement(0, 0, 1.5); // например, повторная сборка на новой итерации решателя
+            matrix.AccumulateAt(0, 0, 1.5); // например, повторная сборка на новой итерации решателя
 
             Assert.AreEqual(6.5, matrix[0, 0], 1e-12);
         }
 
         [TestMethod]
-        public void AddToElement_AfterFinalize_NewPositionThrows()
+        public void AccumulateAt_NewPositionThrows()
         {
-            var matrix = new SparseMatrixCSR(2, 2);
-            matrix.AddToElement(0, 0, 5.0);
-            matrix.FinalizeAssembly();
+            var builder = new SparseMatrixCSRBuilder(2, 2);
+            builder.AddToElement(0, 0, 5.0);
+            var matrix = builder.Build();
 
             // Позиция (0,1) не входила в структуру разреженности при сборке —
-            // структуру после финализации менять нельзя.
-            Assert.ThrowsException<InvalidOperationException>(() => matrix.AddToElement(0, 1, 1.0));
+            // структуру после построения матрицы менять нельзя.
+            Assert.ThrowsException<InvalidOperationException>(() => matrix.AccumulateAt(0, 1, 1.0));
         }
 
         [TestMethod]
-        public void Indexer_Set_AfterFinalize_NewPositionThrows()
+        public void Indexer_Set_NewPositionThrows()
         {
-            var matrix = new SparseMatrixCSR(2, 2);
-            matrix.AddToElement(0, 0, 5.0);
-            matrix.FinalizeAssembly();
+            var builder = new SparseMatrixCSRBuilder(2, 2);
+            builder.AddToElement(0, 0, 5.0);
+            var matrix = builder.Build();
 
             Assert.ThrowsException<InvalidOperationException>(() => matrix[0, 1] = 1.0);
-        }
-
-        [TestMethod]
-        public void Multiply_BeforeFinalize_Throws()
-        {
-            var matrix = new SparseMatrixCSR(2, 2);
-            matrix.AddToElement(0, 0, 1.0);
-
-            Assert.ThrowsException<InvalidOperationException>(() => matrix.Multiply(new[] { 1.0, 1.0 }));
         }
 
         [TestMethod]
@@ -160,9 +170,9 @@ namespace Tests
         {
             var elements = new[]
             {
-                (row: 0, col: 0, value: 2.0),
-                (row: 0, col: 0, value: 3.0), // дубль — должен суммироваться, а не перезаписываться
-                (row: 1, col: 1, value: 4.0),
+                new MatrixEntry(0, 0, 2.0),
+                new MatrixEntry(0, 0, 3.0), // дубль — должен суммироваться, а не перезаписываться
+                new MatrixEntry(1, 1, 4.0),
             };
 
             var matrix = new SparseMatrixCSR(2, 2, elements);
