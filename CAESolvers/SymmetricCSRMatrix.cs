@@ -4,68 +4,19 @@ namespace CAESolvers
     using System.Collections.Generic;
     using System.Linq;
 
-    /// <summary>
-    /// Накопитель вкладов для сборки <see cref="SymmetricSparseMatrixCSR"/>
-    /// (аналог K[i,j] += local[i,j] при сборке МКЭ). Индексы (row, col)
-    /// нормализуются к (min, max), поэтому каждый физический вклад нужно
-    /// добавлять РОВНО ОДИН РАЗ — не нужно (и нельзя) отдельно добавлять
-    /// "зеркальный" вклад для (col, row), иначе значение задвоится.
-    /// Когда сборка завершена, <see cref="Build"/> строит готовую матрицу.
-    /// </summary>
-    public class SymmetricSparseMatrixCSRBuilder
-    {
-        private readonly Dictionary<MatrixPosition, double> buffer = new Dictionary<MatrixPosition, double>();
-
-        private readonly int size;
-
-        public SymmetricSparseMatrixCSRBuilder(int size)
-        {
-            this.size = size;
-        }
-
-        public void AddToElement(int row, int col, double value)
-        {
-            if (row < 0 || row >= size || col < 0 || col >= size)
-                throw new IndexOutOfRangeException($"Индексы вне диапазона: ({row}, {col})");
-
-            Normalize(ref row, ref col);
-
-            var position = new MatrixPosition(row, col);
-            buffer.TryGetValue(position, out double existing);
-            buffer[position] = existing + value;
-        }
-
-        private static void Normalize(ref int row, ref int col)
-        {
-            if (row > col)
-            {
-                int tmp = row;
-                row = col;
-                col = tmp;
-            }
-        }
-
-        /// <summary>
-        /// Строит готовую матрицу из накопленных вкладов.
-        /// </summary>
-        public SymmetricSparseMatrixCSR Build()
-        {
-            var elements = buffer.Select(kv => new MatrixEntry(kv.Key, kv.Value));
-            return new SymmetricSparseMatrixCSR(size, elements);
-        }
-    }
+    
 
     /// <summary>
     /// Разреженная неизменяемая симметричная матрица (A[i,j] == A[j,i]) в
     /// формате CSR, хранящая только верхний треугольник (row &lt;= col)
     /// вместе с диагональю. Подходит для задач упругости, теплопроводности
     /// и т.п., где матрица жёсткости симметрична, и экономит примерно вдвое
-    /// память и число операций по сравнению с общим <see cref="SparseMatrixCSR"/>.
+    /// память и число операций по сравнению с общим <see cref="CSRMatrix"/>.
     /// Строится один раз из координатного формата (см.
     /// <see cref="SymmetricSparseMatrixCSRBuilder"/> для инкрементальной
     /// сборки с накоплением вкладов).
     /// </summary>
-    public class SymmetricSparseMatrixCSR
+    public class SymmetricCSRMatrix
     {
         private readonly double[] values;      // Значения хранимой половины (row <= col)
         private readonly int[] colIndices;     // Индексы столбцов
@@ -82,7 +33,7 @@ namespace CAESolvers
         /// Индексы каждого вклада нормализуются к (min, max), повторяющиеся
         /// нормализованные (Row, Col) суммируются.
         /// </summary>
-        public SymmetricSparseMatrixCSR(int size, IEnumerable<MatrixEntry> elements)
+        public SymmetricCSRMatrix(int size, IEnumerable<MatrixEntry> elements)
         {
             this.size = size;
 
@@ -275,6 +226,48 @@ namespace CAESolvers
         }
 
         /// <summary>
+        /// Умножение матрицы на вектор без выделения памяти: result = A * x.
+        /// Как и в аллоцирующей перегрузке, каждый внедиагональный элемент
+        /// даёт вклад сразу в две позиции результата — в свою строку и в
+        /// симметричную. Именно эту перегрузку используют итерационные
+        /// решатели: на десятках тысяч итераций аллокация массива результата
+        /// на каждое умножение сопоставима по стоимости с самим умножением.
+        /// </summary>
+        public void Multiply(double[] x, double[] result)
+        {
+            if (x == null)
+                throw new ArgumentNullException(nameof(x));
+            if (result == null)
+                throw new ArgumentNullException(nameof(result));
+            if (x.Length != size)
+                throw new ArgumentException($"Размер вектора {x.Length} не соответствует размеру матрицы {size}");
+            if (result.Length != size)
+                throw new ArgumentException($"Размер результата {result.Length} не соответствует размеру матрицы {size}");
+
+            Array.Clear(result, 0, size);
+
+            for (int row = 0; row < size; row++)
+            {
+                double xrow = x[row];
+                double accumulated = 0.0;
+                int end = rowPointers[row + 1];
+
+                for (int k = rowPointers[row]; k < end; k++)
+                {
+                    int col = colIndices[k];
+                    double v = values[k];
+
+                    accumulated += v * x[col];
+                    if (col != row)
+                        result[col] += v * xrow;
+                }
+
+                result[row] += accumulated;
+            }
+        }
+       
+
+        /// <summary>
         /// Логическая строка матрицы (индекс столбца -> значение), включая
         /// элементы "нижнего" треугольника, восстановленные по симметрии из
         /// столбцов предыдущих строк. Стоимость вызова — O(row) на восстановление
@@ -307,6 +300,33 @@ namespace CAESolvers
         public int NonZeroCount => nonZeroCount;
 
         public int Size => size;
+
+        /// <summary>
+        /// Указатели начала строк хранимой половины (длина Size + 1) — прямой
+        /// доступ только для чтения. Нужен алгоритмам, которым требуется
+        /// обойти всю структуру разреженности за O(nnz): символьная фаза
+        /// прямых решателей, переупорядочивание для снижения заполнения.
+        /// Через индексатор или <see cref="GetRow"/> такой обход выродился бы
+        /// в O(n^2) и на матрицах в сотни тысяч уравнений стал бы неприемлем.
+        /// </summary>
+        public ReadOnlySpan<int> RowPointers => rowPointers;
+
+        /// <summary>
+        /// Индексы столбцов хранимой половины (row &lt;= col), внутри каждой
+        /// строки — строго по возрастанию. Первый элемент сегмента строки row —
+        /// это диагональ A[row,row], если она структурно ненулевая.
+        /// </summary>
+        public ReadOnlySpan<int> ColumnIndices => colIndices;
+
+        /// <summary>
+        /// Значения хранимой половины в том же порядке, что и
+        /// <see cref="ColumnIndices"/>. Span всегда отражает текущее состояние
+        /// матрицы (значения меняются через <see cref="AccumulateAt"/> и
+        /// индексатор при неизменной структуре) — именно это позволяет прямому
+        /// решателю один раз выполнить символьную фазу и переиспользовать её
+        /// при повторных сборках на новых итерациях.
+        /// </summary>
+        public ReadOnlySpan<double> Values => values;
 
         public bool IsZero(int row, int col)
         {

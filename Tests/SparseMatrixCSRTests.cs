@@ -15,9 +15,9 @@ namespace Tests
         // элементов (узлы 0-1-2), локальная матрица каждого элемента k*[[1,-1],[-1,1]].
         // Узел 1 общий для обоих элементов, поэтому вклад в K[1,1] должен
         // сложиться из двух элементов: k + k = 2k.
-        private static SparseMatrixCSR BuildTwoElementBarStiffness(double k)
+        private static CSRMatrix BuildTwoElementBarStiffness(double k)
         {
-            var builder = new SparseMatrixCSRBuilder(3, 3);
+            var builder = new CSRMatrixBuilder(3, 3);
 
             void AddElementStiffness(int n0, int n1)
             {
@@ -60,7 +60,7 @@ namespace Tests
         [TestMethod]
         public void Assembly_CancellingContributions_AreTreatedAsZero()
         {
-            var builder = new SparseMatrixCSRBuilder(2, 2);
+            var builder = new CSRMatrixBuilder(2, 2);
 
             builder.AddToElement(0, 1, 3.0);
             builder.AddToElement(0, 1, -3.0); // суммарный вклад равен нулю
@@ -86,7 +86,7 @@ namespace Tests
         [TestMethod]
         public void GetDiagonal_StructurallyZeroDiagonal_ReturnsZero()
         {
-            var builder = new SparseMatrixCSRBuilder(2, 2);
+            var builder = new CSRMatrixBuilder(2, 2);
             builder.AddToElement(0, 1, 5.0); // диагональ строки 0 не участвует в сборке
 
             var matrix = builder.Build();
@@ -125,7 +125,7 @@ namespace Tests
         [TestMethod]
         public void Indexer_OutOfRangeThrows()
         {
-            var matrix = new SparseMatrixCSRBuilder(3, 3).Build();
+            var matrix = new CSRMatrixBuilder(3, 3).Build();
 
             Assert.ThrowsException<IndexOutOfRangeException>(() => { var _ = matrix[3, 0]; });
             Assert.ThrowsException<IndexOutOfRangeException>(() => { var _ = matrix[0, -1]; });
@@ -134,7 +134,7 @@ namespace Tests
         [TestMethod]
         public void AccumulateAt_UpdatesExistingPositionInPlace()
         {
-            var builder = new SparseMatrixCSRBuilder(2, 2);
+            var builder = new CSRMatrixBuilder(2, 2);
             builder.AddToElement(0, 0, 5.0);
             var matrix = builder.Build();
 
@@ -146,7 +146,7 @@ namespace Tests
         [TestMethod]
         public void AccumulateAt_NewPositionThrows()
         {
-            var builder = new SparseMatrixCSRBuilder(2, 2);
+            var builder = new CSRMatrixBuilder(2, 2);
             builder.AddToElement(0, 0, 5.0);
             var matrix = builder.Build();
 
@@ -158,7 +158,7 @@ namespace Tests
         [TestMethod]
         public void Indexer_Set_NewPositionThrows()
         {
-            var builder = new SparseMatrixCSRBuilder(2, 2);
+            var builder = new CSRMatrixBuilder(2, 2);
             builder.AddToElement(0, 0, 5.0);
             var matrix = builder.Build();
 
@@ -175,7 +175,7 @@ namespace Tests
                 new MatrixEntry(1, 1, 4.0),
             };
 
-            var matrix = new SparseMatrixCSR(2, 2, elements);
+            var matrix = new CSRMatrix(2, 2, elements);
 
             Assert.AreEqual(5.0, matrix[0, 0], 1e-12);
             Assert.AreEqual(4.0, matrix[1, 1], 1e-12);

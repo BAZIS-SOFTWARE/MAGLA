@@ -16,9 +16,9 @@ namespace Tests
         // элементов (узлы 0-1-2), локальная матрица каждого элемента k*[[1,-1],[-1,1]].
         // ВАЖНО: внедиагональный вклад добавляется один раз (n0, n1), а не
         // дважды в обе стороны — матрица сама учитывает симметрию.
-        private static SymmetricSparseMatrixCSR BuildTwoElementBarStiffness(double k)
+        private static SymmetricCSRMatrix BuildTwoElementBarStiffness(double k)
         {
-            var builder = new SymmetricSparseMatrixCSRBuilder(3);
+            var builder = new SymmetricCSRMatrixBuilder(3);
 
             void AddElementStiffness(int n0, int n1)
             {
@@ -65,7 +65,7 @@ namespace Tests
             // Документирует контракт: индексы нормализуются, поэтому вклад
             // нужно добавлять один раз. Если добавить его для обеих сторон
             // пары (как для несимметричной матрицы), значение задвоится.
-            var builder = new SymmetricSparseMatrixCSRBuilder(2);
+            var builder = new SymmetricCSRMatrixBuilder(2);
 
             builder.AddToElement(0, 1, 3.0);
             builder.AddToElement(1, 0, 3.0);
@@ -78,7 +78,7 @@ namespace Tests
         [TestMethod]
         public void Assembly_CancellingContributions_AreTreatedAsZero()
         {
-            var builder = new SymmetricSparseMatrixCSRBuilder(2);
+            var builder = new SymmetricCSRMatrixBuilder(2);
 
             builder.AddToElement(0, 1, 3.0);
             builder.AddToElement(1, 0, -3.0); // нормализуется в ту же позицию (0,1) и сокращается
@@ -104,7 +104,7 @@ namespace Tests
         [TestMethod]
         public void GetDiagonal_StructurallyZeroDiagonal_ReturnsZero()
         {
-            var builder = new SymmetricSparseMatrixCSRBuilder(2);
+            var builder = new SymmetricCSRMatrixBuilder(2);
             builder.AddToElement(0, 1, 5.0); // диагональ строки 0 не участвует в сборке
 
             var matrix = builder.Build();
@@ -145,7 +145,7 @@ namespace Tests
         [TestMethod]
         public void Indexer_OutOfRangeThrows()
         {
-            var matrix = new SymmetricSparseMatrixCSRBuilder(3).Build();
+            var matrix = new SymmetricCSRMatrixBuilder(3).Build();
 
             Assert.ThrowsException<IndexOutOfRangeException>(() => { var _ = matrix[3, 0]; });
             Assert.ThrowsException<IndexOutOfRangeException>(() => { var _ = matrix[0, -1]; });
@@ -154,7 +154,7 @@ namespace Tests
         [TestMethod]
         public void AccumulateAt_UpdatesExistingPositionInPlace()
         {
-            var builder = new SymmetricSparseMatrixCSRBuilder(2);
+            var builder = new SymmetricCSRMatrixBuilder(2);
             builder.AddToElement(0, 1, 5.0);
             var matrix = builder.Build();
 
@@ -166,7 +166,7 @@ namespace Tests
         [TestMethod]
         public void AccumulateAt_NewPositionThrows()
         {
-            var builder = new SymmetricSparseMatrixCSRBuilder(2);
+            var builder = new SymmetricCSRMatrixBuilder(2);
             builder.AddToElement(0, 0, 5.0);
             var matrix = builder.Build();
 
@@ -183,7 +183,7 @@ namespace Tests
                 new MatrixEntry(1, 1, 4.0),
             };
 
-            var matrix = new SymmetricSparseMatrixCSR(2, elements);
+            var matrix = new SymmetricCSRMatrix(2, elements);
 
             Assert.AreEqual(5.0, matrix[0, 1], 1e-12);
             Assert.AreEqual(4.0, matrix[1, 1], 1e-12);
