@@ -1,0 +1,97 @@
+﻿@startuml
+abstract class GeneralTask
+abstract class HeatTask
+class HeatTask3D
+class HeatTask2DAxi
+abstract class MechTask
+class MechTask3D
+class MaechTask2DAxi
+
+class GeomData
+abstract class ElementsData {
+ void FillMatrices(MatrixContainer<double> matrices, NodesData nodes,float timeStep)
+}
+
+note "Содержит элементы\nописывающие рассматриваемое тело" as N2
+ElementsData .. N2
+
+abstract class ElementMechanical {
+  Matrix<double> Stiffness_Calc()
+  Matrix<double> El_ElasticMatrix_Calc()
+  Vector<double> Force_Calc(Vector<double> strain)
+  Vector<double> Strain_Calc(Vector<double> displeNode)
+  Vector<double> TermalStrain_Calc(float temp)
+  Vector<double> ElasticStrain_Calc(Vector<double> stress)
+  Vector<double> Stress_Calc(Vector<double> strain)
+  double IntensityStrain_Calc(Vector<double> strain)
+  double IntensityStress_Calc(Vector<double> stress)
+}
+
+interface IHeatBoundary {
+  Vector<double> FlowHeat_Calc(IElement elem, float flowValue)
+  Matrix<double> ExchangeBoundary_Calc(IElement elem, float heatExch)
+  Vector<double> FlowBoundary_Calc(IElement elem, float mediaTemp, float heatExch)
+}
+
+abstract class ElementTermal {
+  Matrix<double> HeatTransfer_Calc()
+  Matrix<double> Capacity_Calc()
+  Vector<double> VolumeHeat_Calc(double heatValue)
+}
+abstract class ElementItem
+
+class ET3DB {
+  double Square
+}
+class ET3DP {
+  double Thickness
+}
+class ET3DV {}
+
+class ET2DAP { 
+ double Thickness
+}
+class ET2DAV {}
+
+class EM3DB {
+  double Square
+}
+class EM3DP {
+  double Thickness
+}
+class EM3DV {}
+
+class EM2DAP { 
+ double Thickness
+}
+class EM2DAV {}
+
+ElementItem <|-- ElementTermal
+ElementTermal <|-- ET3DB
+ElementTermal <|-- ET3DP
+ElementTermal <|-- ET3DV
+ElementTermal <|-- ET2DAP
+ElementTermal <|-- ET2DAV
+
+ElementItem <|-- ElementMechanical
+ElementMechanical <|-- EM3DB
+ElementMechanical <|-- EM3DP
+ElementMechanical <|-- EM3DV
+ElementMechanical <|-- EM2DAP
+ElementMechanical <|-- EM2DAV
+
+
+ElementsData *--> ElementItem
+ElementsData <|-- MechData
+ElementsData <|-- HeatData
+GeneralTask --> ElementsData
+GeneralTask --> GeomData
+
+GeneralTask <|-- HeatTask
+GeneralTask <|-- MechTask
+MechTask <|-- MechTask3D
+MechTask <|-- MechTask2DAxi
+HeatTask <|-- HeatTask2DAxi
+HeatTask <|-- HeatTask3D
+HeatTask *--> IHeatBoundary
+@enduml

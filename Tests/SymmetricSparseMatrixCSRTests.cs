@@ -12,6 +12,32 @@ namespace Tests
     [TestClass]
     public class SymmetricSparseMatrixCSRTests
     {
+        [TestMethod]
+        public void LineCross_AppliesDirichletConditionWithoutChangingCsrStructure()
+        {
+            var builder = new SymmetricCSRMatrixBuilder(3);
+            builder.AddToElement(0, 0, 4.0);
+            builder.AddToElement(0, 1, 2.0);
+            builder.AddToElement(0, 2, -1.0);
+            builder.AddToElement(1, 1, 5.0);
+            builder.AddToElement(1, 2, 7.0);
+            builder.AddToElement(2, 2, 9.0);
+
+            SymmetricCSRMatrix matrix = builder.Build();
+            double[] rightHandSide = { 11.0, 13.0, 17.0 };
+            int nonZeroCount = matrix.NonZeroCount;
+
+            matrix.LineCross(rightHandSide, prescribedValue: 2.0, index: 1);
+
+            Assert.AreEqual(nonZeroCount, matrix.NonZeroCount);
+            Assert.AreEqual(0.0, matrix[0, 1]);
+            Assert.AreEqual(1.0, matrix[1, 1]);
+            Assert.AreEqual(0.0, matrix[1, 2]);
+            Assert.AreEqual(7.0, rightHandSide[0]);
+            Assert.AreEqual(2.0, rightHandSide[1]);
+            Assert.AreEqual(3.0, rightHandSide[2]);
+        }
+
         // Сборка глобальной матрицы жёсткости 1D-стержня из двух линейных
         // элементов (узлы 0-1-2), локальная матрица каждого элемента k*[[1,-1],[-1,1]].
         // ВАЖНО: внедиагональный вклад добавляется один раз (n0, n1), а не

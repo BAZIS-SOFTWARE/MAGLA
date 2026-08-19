@@ -11,6 +11,38 @@ namespace Tests
     [TestClass]
     public class SparseMatrixCSRTests
     {
+        [TestMethod]
+        public void LineCross_AppliesDirichletConditionWithoutChangingCsrStructure()
+        {
+            var builder = new CSRMatrixBuilder(3, 3);
+            double[,] values =
+            {
+                { 4.0, 2.0, -1.0 },
+                { 3.0, 5.0, 7.0 },
+                { 6.0, 8.0, 9.0 }
+            };
+
+            for (int row = 0; row < 3; row++)
+                for (int col = 0; col < 3; col++)
+                    builder.AddToElement(row, col, values[row, col]);
+
+            CSRMatrix matrix = builder.Build();
+            double[] rightHandSide = { 11.0, 13.0, 17.0 };
+            int nonZeroCount = matrix.NonZeroCount;
+
+            matrix.LineCross(rightHandSide, prescribedValue: 2.0, index: 1);
+
+            Assert.AreEqual(nonZeroCount, matrix.NonZeroCount);
+            Assert.AreEqual(0.0, matrix[0, 1]);
+            Assert.AreEqual(0.0, matrix[1, 0]);
+            Assert.AreEqual(1.0, matrix[1, 1]);
+            Assert.AreEqual(0.0, matrix[1, 2]);
+            Assert.AreEqual(0.0, matrix[2, 1]);
+            Assert.AreEqual(7.0, rightHandSide[0]);
+            Assert.AreEqual(2.0, rightHandSide[1]);
+            Assert.AreEqual(1.0, rightHandSide[2]);
+        }
+
         // Сборка глобальной матрицы жёсткости 1D-стержня из двух линейных
         // элементов (узлы 0-1-2), локальная матрица каждого элемента k*[[1,-1],[-1,1]].
         // Узел 1 общий для обоих элементов, поэтому вклад в K[1,1] должен

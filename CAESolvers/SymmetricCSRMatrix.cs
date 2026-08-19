@@ -16,7 +16,7 @@ namespace CAESolvers
     /// <see cref="SymmetricSparseMatrixCSRBuilder"/> для инкрементальной
     /// сборки с накоплением вкладов).
     /// </summary>
-    public class SymmetricCSRMatrix
+    public class SymmetricCSRMatrix : ICsrMatrix
     {
         private readonly double[] values;      // Значения хранимой половины (row <= col)
         private readonly int[] colIndices;     // Индексы столбцов
@@ -107,6 +107,63 @@ namespace CAESolvers
                     "Включите эту позицию в сборку через SymmetricSparseMatrixCSRBuilder заранее.");
 
             values[index] += value;
+        }
+
+        /// <summary>Обнуляет значения, не изменяя структуру CSR.</summary>
+        public void ClearValues()
+        {
+            Array.Clear(values);
+        }
+
+        /// <summary>
+        /// Накладывает существенное (Дирихле) граничное условие
+        /// x[index] = prescribedValue на систему A x = rightHandSide.
+        /// Связи с исключаемой неизвестной зануляются, диагональный элемент
+        /// заменяется единицей, а правая часть остальных уравнений
+        /// корректируется. Структура CSR при этом не изменяется.
+        /// </summary>
+        public void LineCross(double[] rightHandSide, double prescribedValue, int index)
+        {
+            if (rightHandSide == null)
+                throw new ArgumentNullException(nameof(rightHandSide));
+            if (rightHandSide.Length != size)
+                throw new ArgumentException(
+                    $"Размер правой части {rightHandSide.Length} не соответствует размеру матрицы {size}",
+                    nameof(rightHandSide));
+            if (index < 0 || index >= size)
+                throw new ArgumentOutOfRangeException(nameof(index));
+
+            int diagonalIndex = diagonalIndices[index];
+            if (diagonalIndex < 0)
+                throw new InvalidOperationException(
+                    $"Диагональная позиция ({index}, {index}) отсутствует в структуре разреженности.");
+
+            for (int row = 0; row < size; row++)
+            {
+                int start = rowPointers[row];
+                int end = rowPointers[row + 1];
+
+                for (int position = start; position < end; position++)
+                {
+                    int col = colIndices[position];
+                    if (row == col)
+                        continue;
+
+                    int other;
+                    if (row == index)
+                        other = col;
+                    else if (col == index)
+                        other = row;
+                    else
+                        continue;
+
+                    rightHandSide[other] -= values[position] * prescribedValue;
+                    values[position] = 0.0;
+                }
+            }
+
+            values[diagonalIndex] = 1.0;
+            rightHandSide[index] = prescribedValue;
         }
 
         /// <summary>
@@ -298,6 +355,10 @@ namespace CAESolvers
         }
 
         public int NonZeroCount => nonZeroCount;
+
+        public int RowCount => size;
+
+        public int ColumnCount => size;
 
         public int Size => size;
 

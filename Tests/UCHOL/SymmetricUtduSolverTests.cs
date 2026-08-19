@@ -313,11 +313,17 @@ namespace Tests
             var b = BuildVector(matrix.Size, seed: 11);
 
             var direct = new SymmetricUtduSolver().Solve(matrix, b);
-            var iterative = new ConjugateGradientGaussPreSolver { Tolerance = 1e-12, MaxIterations = 20000 }.Solve(matrix, b);
+            var iterativeSolver = new ConjugateGradientGaussPreSolver
+            {
+                RelativeTolerance = 1e-12,
+                MaxIterations = 20000
+            };
+            var iterative = iterativeSolver.Solve(matrix, b);
 
-            Assert.IsTrue(iterative.Converged, "Итерационный решатель не сошёлся — сравнивать не с чем");
-            Assert.IsTrue(MaxRelativeDifference(direct, iterative.Solution) < 1e-6,
-                $"Прямое и итерационное решения расходятся: {MaxRelativeDifference(direct, iterative.Solution):E3}");
+            Assert.IsTrue(iterativeSolver.LastResult!.Converged,
+                "Итерационный решатель не сошёлся — сравнивать не с чем");
+            Assert.IsTrue(MaxRelativeDifference(direct, iterative) < 1e-6,
+                $"Прямое и итерационное решения расходятся: {MaxRelativeDifference(direct, iterative):E3}");
         }
 
         /// <summary>

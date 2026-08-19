@@ -5,7 +5,7 @@ namespace CAESolvers
     /// число выполненных итераций, признак сходимости по заданному критерию
     /// и норма невязки на момент останова (для диагностики/логирования).
     /// </summary>
-    public sealed class IterativeSolverResult
+    public class IterativeSolverResult
     {
         public IterativeSolverResult(
             double[] solution, int iterations, bool converged, double residualNorm)
@@ -23,7 +23,7 @@ namespace CAESolvers
         public int Iterations { get; }
 
         /// <summary>
-        /// true, если относительная норма невязки достигла Tolerance до
+        /// true, если относительная норма невязки достигла RelativeTolerance до
         /// исчерпания MaxIterations.
         /// </summary>
         public bool Converged { get; }

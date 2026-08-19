@@ -14,7 +14,7 @@ namespace CAESolvers
     /// число ненулевых в строке); можно только обновить значение уже
     /// существующей ненулевой позиции (<see cref="AccumulateAt"/>, this[,]).
     /// </summary>
-    public class CSRMatrix
+    public class CSRMatrix : ICsrMatrix
     {
         private readonly double[] values;      // Значения ненулевых элементов
         private readonly int[] colIndices;     // Индексы столбцов
@@ -91,6 +91,65 @@ namespace CAESolvers
                     "Включите эту позицию в сборку через SparseMatrixCSRBuilder заранее.");
 
             values[index] += value;
+        }
+
+        /// <summary>Обнуляет значения, не изменяя структуру CSR.</summary>
+        public void ClearValues()
+        {
+            Array.Clear(values);
+        }
+
+        /// <summary>
+        /// Накладывает существенное (Дирихле) граничное условие
+        /// x[index] = prescribedValue на систему A x = rightHandSide.
+        /// Строка и столбец неизвестной зануляются, диагональный элемент
+        /// заменяется единицей, а правая часть остальных уравнений
+        /// корректируется на исключённый столбец.
+        /// Структура CSR при этом не изменяется.
+        /// </summary>
+        public void LineCross(double[] rightHandSide, double prescribedValue, int index)
+        {
+            if (rightHandSide == null)
+                throw new ArgumentNullException(nameof(rightHandSide));
+            if (rightHandSide.Length != rows)
+                throw new ArgumentException(
+                    $"Размер правой части {rightHandSide.Length} не соответствует числу строк матрицы {rows}",
+                    nameof(rightHandSide));
+            if (rows != cols)
+                throw new InvalidOperationException(
+                    "Граничное условие можно наложить только на квадратную матрицу.");
+            if (index < 0 || index >= rows)
+                throw new ArgumentOutOfRangeException(nameof(index));
+
+            int diagonalIndex = diagonalIndices[index];
+            if (diagonalIndex < 0)
+                throw new InvalidOperationException(
+                    $"Диагональная позиция ({index}, {index}) отсутствует в структуре разреженности.");
+
+            for (int row = 0; row < rows; row++)
+            {
+                int start = rowPointers[row];
+                int end = rowPointers[row + 1];
+
+                for (int position = start; position < end; position++)
+                {
+                    int col = colIndices[position];
+
+                    if (row == index)
+                    {
+                        if (col != index)
+                            values[position] = 0.0;
+                    }
+                    else if (col == index)
+                    {
+                        rightHandSide[row] -= values[position] * prescribedValue;
+                        values[position] = 0.0;
+                    }
+                }
+            }
+
+            values[diagonalIndex] = 1.0;
+            rightHandSide[index] = prescribedValue;
         }
 
         /// <summary>
@@ -208,6 +267,19 @@ namespace CAESolvers
         }
 
         public int NonZeroCount => nonZeroCount;
+
+        public int RowCount => rows;
+
+        public int ColumnCount => cols;
+
+        /// <summary>Указатели начала строк CSR.</summary>
+        public ReadOnlySpan<int> RowPointers => rowPointers;
+
+        /// <summary>Индексы столбцов ненулевых позиций.</summary>
+        public ReadOnlySpan<int> ColumnIndices => colIndices;
+
+        /// <summary>Текущие численные значения CSR.</summary>
+        public ReadOnlySpan<double> Values => values;
 
         public (int rows, int cols) Size => (rows, cols);
 

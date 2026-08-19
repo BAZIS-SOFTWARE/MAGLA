@@ -17,28 +17,31 @@ namespace CAESolvers
     /// = false — тогда метод вырождается в классический CG без
     /// предобуславливания.
     ///
+    /// Критерий останова — относительная норма невязки:
+    /// ||b - A x_k|| / ||b|| &lt;= RelativeTolerance. Лимит итераций задаётся
+    /// через MaxIterations; значение 0 (по умолчанию для этого решателя)
+    /// означает «взять равным числу неизвестных» — в точной арифметике CG
+    /// сходится не более чем за n итераций.
+    ///
+    /// Решатель не выделяет память в цикле итераций: все рабочие векторы
+    /// (невязка, предобусловленная невязка, направление спуска и
+    /// произведение A * p) выделяются один раз за вызов <see cref="Solve"/>
+    /// и переиспользуются, а умножение матрицы на вектор идёт через
+    /// перегрузку <see cref="SymmetricCSRMatrix.Multiply(double[], double[])"/>,
+    /// пишущую результат в готовый буфер. На десятках тысяч итераций
+    /// аллокация вектора результата на каждое умножение сопоставима по
+    /// стоимости с самим умножением и вдобавок нагружает сборщик мусора.
+    ///
     /// Матрица A должна быть симметричной положительно определённой — на
     /// этом основана сходимость метода. Сам решатель не проверяет это
     /// заранее (проверка дорога), но обнаруживает явное нарушение
     /// предположения по ходу итераций (p^T A p &lt;= 0) и в этом случае
     /// бросает исключение, а не возвращает бессмысленный результат.
     /// </summary>
-    public class ConjugateGradientGaussPreSolver : ISymmetricLinearSolver
+    public class ConjugateGradientGaussPreSolver
+        : IterativeSolver<SymmetricCSRMatrix, IterativeSolverResult>,
+          ISymmetricLinearSolver
     {
-        /// <summary>
-        /// Критерий останова по относительной норме невязки:
-        /// ||b - A x_k|| / ||b|| &lt;= Tolerance. Если ||b|| пренебрежимо
-        /// мала (правая часть ~ 0), используется абсолютная норма невязки.
-        /// </summary>
-        public double Tolerance { get; set; } = 1e-8;
-
-        /// <summary>
-        /// Максимум итераций. Значение 0 (по умолчанию) означает "взять
-        /// равным числу неизвестных" — в точной арифметике CG сходится не
-        /// более чем за n итераций.
-        /// </summary>
-        public int MaxIterations { get; set; } = 0;
-
         /// <summary>
         /// Включает диагональное (Якоби) предобуславливание. По умолчанию
         /// включено: для типичных плохо масштабированных матриц жёсткости
@@ -47,143 +50,137 @@ namespace CAESolvers
         /// </summary>
         public bool UsePreconditioner { get; set; } = true;
 
+        public override double[] Solve(
+            SymmetricCSRMatrix matrix, double[] rightHandSide)
+        {
+            return Solve(matrix, rightHandSide, null);
+        }
+
         /// <summary>
         /// Решает A x = b методом CG (с якоби-предобуславливанием, если
         /// <see cref="UsePreconditioner"/>). Если задан initialGuess, он
         /// используется как начальное приближение x0 (иначе x0 = 0).
         /// </summary>
-        public IterativeSolverResult Solve(SymmetricCSRMatrix matrix, double[] b, double[]? initialGuess = null)
+        public double[] Solve(
+            SymmetricCSRMatrix matrix,
+            double[] b,
+            double[]? initialGuess)
         {
-            if (matrix == null)
-                throw new ArgumentNullException(nameof(matrix));
-            if (b == null)
-                throw new ArgumentNullException(nameof(b));
+            LastResult = null;
 
-            int n = matrix.Size;
-            if (b.Length != n)
-                throw new ArgumentException(
-                    $"Размер вектора правой части {b.Length} не соответствует размеру матрицы {n}");
+            ValidateCommonArguments(matrix, b);
 
-            double[] x;
+            var n = matrix.Size;
+
             if (initialGuess != null)
             {
                 if (initialGuess.Length != n)
                     throw new ArgumentException(
                         $"Размер начального приближения {initialGuess.Length} не соответствует размеру матрицы {n}");
+            }
 
-                x = (double[])initialGuess.Clone();
-            }
-            else
-            {
-                x = new double[n];
-            }
+            var x = initialGuess != null
+                ? (double[])initialGuess.Clone()
+                : new double[n];
 
             if (n == 0)
-                return new IterativeSolverResult(x, 0, true, 0.0);
+                return Complete(new IterativeSolverResult(x, 0, true, 0.0));
 
-            double bNorm = Norm(b);
-            double residualThreshold = Tolerance * (bNorm > 1e-300 ? bNorm : 1.0);
+            var residualThreshold = RelativeTolerance * CalculateNorm(b);
 
-            double[] r = Subtract(b, matrix.Multiply(x));
-            double rNorm = Norm(r);
+            // Рабочие векторы на весь вызов: невязка r, предобусловленная
+            // невязка z, направление спуска p и произведение A * p.
+            var r = new double[n];
+            var z = new double[n];
+            var p = new double[n];
+            var Ap = new double[n];
+
+            // До входа в цикл Ap служит буфером под A * x0.
+            matrix.Multiply(x, Ap);
+            for (var i = 0; i < n; i++)
+                r[i] = b[i] - Ap[i];
+
+            var rNorm = CalculateNorm(r);
 
             if (rNorm <= residualThreshold)
-                return new IterativeSolverResult(x, 0, true, rNorm);
+                return Complete(new IterativeSolverResult(x, 0, true, rNorm));
 
-            double[] z = ApplyPreconditioner(matrix, r);
-            double[] p = (double[])z.Clone();
-            double rzOld = Dot(r, z);
+            ApplyPreconditioner(matrix, r, z);
+            Array.Copy(z, p, n);
+            var rzOld = Dot(r, z);
 
-            int maxIterations = MaxIterations > 0 ? MaxIterations : n;
+            var maxIterations = MaxIterations > 0 ? MaxIterations : n;
 
-            for (int iteration = 1; iteration <= maxIterations; iteration++)
+            for (var iteration = 1; iteration <= maxIterations; iteration++)
             {
-                double[] Ap = matrix.Multiply(p);
-                double pAp = Dot(p, Ap);
+                matrix.Multiply(p, Ap);
+                var pAp = Dot(p, Ap);
 
                 if (pAp <= 0.0)
                     throw new InvalidOperationException(
                         "p^T A p <= 0 — матрица не является положительно определённой, метод CG неприменим.");
 
-                double alpha = rzOld / pAp;
+                var alpha = rzOld / pAp;
 
-                for (int i = 0; i < n; i++)
+                for (var i = 0; i < n; i++)
                 {
                     x[i] += alpha * p[i];
                     r[i] -= alpha * Ap[i];
                 }
 
-                rNorm = Norm(r);
+                rNorm = CalculateNorm(r);
                 if (rNorm <= residualThreshold)
-                    return new IterativeSolverResult(x, iteration, true, rNorm);
+                    return Complete(
+                        new IterativeSolverResult(x, iteration, true, rNorm));
 
-                z = ApplyPreconditioner(matrix, r);
-                double rzNew = Dot(r, z);
-                double beta = rzNew / rzOld;
+                ApplyPreconditioner(matrix, r, z);
+                var rzNew = Dot(r, z);
+                var beta = rzNew / rzOld;
 
-                for (int i = 0; i < n; i++)
+                for (var i = 0; i < n; i++)
                     p[i] = z[i] + beta * p[i];
 
                 rzOld = rzNew;
             }
 
-            return new IterativeSolverResult(x, maxIterations, false, rNorm);
+            return Complete(
+                new IterativeSolverResult(x, maxIterations, false, rNorm));
         }
 
-        /// <summary>
-        /// Реализация общего контракта решателя. Использует нулевое начальное
-        /// приближение и возвращает только сошедшееся решение.
-        /// </summary>
-        /// <exception cref="SolverConvergenceException">
-        /// Заданная точность не достигнута за разрешённое число итераций.
-        /// </exception>
-        double[] ISymmetricLinearSolver.Solve(
-            SymmetricCSRMatrix matrix, double[] rightHandSide)
+        private double[] Complete(IterativeSolverResult result)
         {
-            IterativeSolverResult result = Solve(matrix, rightHandSide);
-            if (!result.Converged)
-                throw new SolverConvergenceException(result.Iterations, result.ResidualNorm);
-
+            LastResult = result;
             return result.Solution;
         }
 
         /// <summary>
         /// Применяет якоби-предобуславливатель: z = D^-1 r, где D — диагональ
-        /// матрицы. При UsePreconditioner = false возвращает копию r
-        /// (предобуславливатель = единичная матрица).
+        /// матрицы. При UsePreconditioner = false просто копирует r в z
+        /// (предобуславливатель = единичная матрица). Результат пишется в
+        /// готовый буфер z, чтобы не выделять вектор на каждой итерации.
         /// </summary>
-        private double[] ApplyPreconditioner(SymmetricCSRMatrix matrix, double[] r)
+        private void ApplyPreconditioner(
+            SymmetricCSRMatrix matrix, double[] r, double[] z)
         {
             if (!UsePreconditioner)
-                return (double[])r.Clone();
-
-            int n = r.Length;
-            var z = new double[n];
-            for (int i = 0; i < n; i++)
             {
-                double d = matrix.GetDiagonal(i);
-                z[i] = Math.Abs(d) > 1e-300 ? r[i] / d : r[i];
+                Array.Copy(r, z, r.Length);
+                return;
             }
 
-            return z;
+            for (var i = 0; i < r.Length; i++)
+            {
+                var d = matrix.GetDiagonal(i);
+                z[i] = Math.Abs(d) > 1e-300 ? r[i] / d : r[i];
+            }
         }
 
-        private static double Dot(double[] a, double[] b)
+        private double Dot(double[] a, double[] b)
         {
-            double sum = 0.0;
-            for (int i = 0; i < a.Length; i++)
+            var sum = 0.0;
+            for (var i = 0; i < a.Length; i++)
                 sum += a[i] * b[i];
             return sum;
-        }
-
-        private static double Norm(double[] v) => Math.Sqrt(Dot(v, v));
-
-        private static double[] Subtract(double[] a, double[] b)
-        {
-            var result = new double[a.Length];
-            for (int i = 0; i < a.Length; i++)
-                result[i] = a[i] - b[i];
-            return result;
         }
     }
 }

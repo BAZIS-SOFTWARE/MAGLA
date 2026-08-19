@@ -65,13 +65,14 @@ namespace Tests
             var b = matrix.Multiply(expectedSolution);
 
             var solver = new ConjugateGradientGaussPreSolver();
-            var result = solver.Solve(matrix, b, initialGuess);
+            var solution = solver.Solve(matrix, b, initialGuess);
+            var result = solver.LastResult!;
 
             Assert.IsTrue(result.Converged);
             Assert.AreEqual(expectedIterations, result.Iterations);
 
             for (int i = 0; i < expectedSolution.Length; i++)
-                Assert.AreEqual(expectedSolution[i], result.Solution[i], 1e-9);
+                Assert.AreEqual(expectedSolution[i], solution[i], 1e-9);
         }
 
         /// <summary>
@@ -88,12 +89,13 @@ namespace Tests
             var matrix = BuildTridiagonalMatrix(5, diagonal: 4.0, offDiagonal: -1.0);
             var b = new[] { 1.0, 2.0, 3.0, 4.0, 5.0 };
 
-            var solver = new ConjugateGradientGaussPreSolver { Tolerance = 1e-10, UsePreconditioner = usePreconditioner };
-            var result = solver.Solve(matrix, b);
+            var solver = new ConjugateGradientGaussPreSolver { RelativeTolerance = 1e-10, UsePreconditioner = usePreconditioner };
+            var solution = solver.Solve(matrix, b);
+            var result = solver.LastResult!;
 
             Assert.IsTrue(result.Converged);
 
-            var residual = matrix.Multiply(result.Solution);
+            var residual = matrix.Multiply(solution);
             for (int i = 0; i < b.Length; i++)
                 Assert.AreEqual(b[i], residual[i], 1e-6);
         }

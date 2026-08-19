@@ -14,7 +14,7 @@ namespace Tests
             double[] rightHandSide = matrix.Multiply(expected);
             ISymmetricLinearSolver solver = new ConjugateGradientGaussPreSolver
             {
-                Tolerance = 1e-12
+                RelativeTolerance = 1e-12
             };
 
             double[] actual = solver.Solve(matrix, rightHandSide);
@@ -36,22 +36,25 @@ namespace Tests
         }
 
         [TestMethod]
-        public void ConjugateGradientGaussPreSolver_ThroughInterface_ThrowsWhenNotConverged()
+        public void ConjugateGradientGaussPreSolver_ThroughInterface_ReturnsLastApproximationWhenNotConverged()
         {
             SymmetricCSRMatrix matrix = BuildTridiagonalMatrix(4);
             double[] rightHandSide = { 1.0, 2.0, 3.0, 4.0 };
-            ISymmetricLinearSolver solver = new ConjugateGradientGaussPreSolver
+            var conjugateGradient = new ConjugateGradientGaussPreSolver
             {
-                Tolerance = 1e-30,
+                RelativeTolerance = 1e-30,
                 MaxIterations = 1,
                 UsePreconditioner = false
             };
+            ISymmetricLinearSolver solver = conjugateGradient;
 
-            SolverConvergenceException exception = Assert.ThrowsException<SolverConvergenceException>(
-                () => solver.Solve(matrix, rightHandSide));
+            double[] solution = solver.Solve(matrix, rightHandSide);
+            IterativeSolverResult result = conjugateGradient.LastResult!;
 
-            Assert.AreEqual(1, exception.Iterations);
-            Assert.IsTrue(exception.ResidualNorm > 0.0);
+            Assert.AreSame(solution, result.Solution);
+            Assert.IsFalse(result.Converged);
+            Assert.AreEqual(1, result.Iterations);
+            Assert.IsTrue(result.ResidualNorm > 0.0);
         }
 
         private static SymmetricCSRMatrix BuildTridiagonalMatrix(int size)
