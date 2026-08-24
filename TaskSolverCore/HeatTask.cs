@@ -40,7 +40,7 @@ namespace TaskSolverCore
 
         public TermalConvergence TermalConvergence { get; }
         public HeatTask(int index, string folder,ITaskData taskData, TermalParameters parameters) : 
-            base(index, folder, taskData, parameters, SolverBuilder.Create<SymmetricCSRMatrix>(parameters.SolverSettings))
+            base(index, folder, taskData, parameters, SolverBuilder.CreateSymmetric(parameters.SolverSettings))
         {
             TaskKind = taskKind.термическая;
 

@@ -40,7 +40,7 @@ namespace TaskSolverCore
         internal List<LoadData> LoadData;
 
         public MechTask(int index, string folder,ITaskData taskData, MechanicalParameters parameters) 
-            : base(index, folder, taskData, parameters, SolverBuilder.Create<SymmetricCSRMatrix>(parameters.SolverSettings))
+            : base(index, folder, taskData, parameters, SolverBuilder.CreateSymmetric(parameters.SolverSettings))
         {
             Parameters = parameters;
             ClampData = taskData.Find<ClampData>().ToList();

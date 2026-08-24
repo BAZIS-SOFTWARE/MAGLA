@@ -1,54 +1,35 @@
 using CAESolvers;
 using Project.TaskParameters;
-using System.Collections.Concurrent;
 
 namespace TaskSolverCore
 {
     /// <summary>
-    /// Создаёт решатели, зарегистрированные для конкретного типа CSR-матрицы.
+    /// Создаёт решатели линейных систем для CSR-матриц.
     /// </summary>
     public static class SolverBuilder
     {
-        static SolverBuilder()
-        {
-            Register<SymmetricCSRMatrix>("Chol_direct", CreateSymmetricUtduSolver);
-            RegisterDefault<SymmetricCSRMatrix>(CreateConjugateGradientSolver);
-        }
-
         /// <summary>
-        /// Регистрирует именованную фабрику решателя для типа матрицы.
+        /// Создаёт встроенный решатель для симметричной матрицы.
         /// </summary>
-        public static void Register<TMatrix>(string solverName, Func<SolverSettings, ILinearSolver<TMatrix>> factory) where TMatrix : class, ICsrMatrix
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(solverName);
-            ArgumentNullException.ThrowIfNull(factory);
-
-            SolverRegistry<TMatrix>.Factories[solverName] = factory;
-        }
-
-        /// <summary>
-        /// Регистрирует фабрику, используемую при отсутствии именованного решателя.
-        /// </summary>
-        public static void RegisterDefault<TMatrix>(Func<SolverSettings, ILinearSolver<TMatrix>> factory) where TMatrix : class, ICsrMatrix
-        {
-            ArgumentNullException.ThrowIfNull(factory);
-            SolverRegistry<TMatrix>.DefaultFactory = factory;
-        }
-
-        /// <summary>
-        /// Создаёт решатель для указанного типа матрицы и настроек.
-        /// </summary>
-        public static ILinearSolver<TMatrix> Create<TMatrix>(SolverSettings settings) where TMatrix : class, ICsrMatrix
+        public static ILinearSolver<SymmetricCSRMatrix> CreateSymmetric(SolverSettings settings)
         {
             ArgumentNullException.ThrowIfNull(settings);
 
-            if (!string.IsNullOrWhiteSpace(settings.Solver) && SolverRegistry<TMatrix>.Factories.TryGetValue(settings.Solver, out var factory))
-                return factory(settings);
+            return settings.Solver == "Chol_direct"
+                ? CreateSymmetricUtduSolver(settings)
+                : CreateConjugateGradientSolver(settings);
+        }
 
-            if (SolverRegistry<TMatrix>.DefaultFactory is { } defaultFactory)
-                return defaultFactory(settings);
+        /// <summary>
+        /// Создаёт решатель произвольного типа матрицы через фабрику физического модуля.
+        /// </summary>
+        public static ILinearSolver<TMatrix> Create<TMatrix>(SolverSettings settings, Func<SolverSettings, ILinearSolver<TMatrix>> solverFactory) where TMatrix : class, ICsrMatrix
+        {
+            ArgumentNullException.ThrowIfNull(settings);
+            ArgumentNullException.ThrowIfNull(solverFactory);
 
-            throw new NotSupportedException($"Для матрицы {typeof(TMatrix).Name} не зарегистрирован решатель '{settings.Solver}'.");
+            var solver = solverFactory(settings);
+            return solver ?? throw new InvalidOperationException($"Фабрика не создала решатель для матрицы {typeof(TMatrix).Name}.");
         }
 
         private static ILinearSolver<SymmetricCSRMatrix> CreateSymmetricUtduSolver(SolverSettings settings)
@@ -84,13 +65,6 @@ namespace TaskSolverCore
             };
 
             return Math.Max(1, requested);
-        }
-
-        private static class SolverRegistry<TMatrix> where TMatrix : class, ICsrMatrix
-        {
-            public static ConcurrentDictionary<string, Func<SolverSettings, ILinearSolver<TMatrix>>> Factories { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-            public static Func<SolverSettings, ILinearSolver<TMatrix>>? DefaultFactory { get; set; }
         }
     }
 }
