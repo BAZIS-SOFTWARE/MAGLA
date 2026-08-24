@@ -30,7 +30,7 @@ using static System.Net.WebRequestMethods;
 
 namespace TaskSolverCore
 {
-    public abstract partial class MechTaskM : GeneralTask<ElementMechanical>
+    public abstract partial class MechTaskM : GeneralTask<ElementMechanical, SymmetricCSRMatrix>
     {
         public string ChemicalFile { get; set; } = "";
         public string ThermalFile { get; set; } = "";
@@ -46,7 +46,7 @@ namespace TaskSolverCore
         internal List<LoadData> LoadData;
 
         public MechTaskM(int index, string folder,ITaskData taskData, MechanicalParameters parameters) 
-            : base(index, folder, taskData, parameters)
+            : base(index, folder, taskData, parameters, SolverBuilder.Create(parameters.SolverSettings))
         {
             Parameters = parameters;
             ClampData = taskData.Find<ClampData>().ToList();

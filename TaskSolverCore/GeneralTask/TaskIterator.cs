@@ -11,9 +11,9 @@ using TaskSolverCore.Vector;
 
 namespace TaskSolverCore
 {
-    public abstract partial class GeneralTask<T>
+    public abstract partial class GeneralTask<TElement, TMatrix>
     {
-        private bool TaskIterator(TaskSystemContext<T> context)
+        private bool TaskIterator(TaskSystemContext<TElement> context)
         {
             var converge = false;
             var timeStep = context.TimeStep;

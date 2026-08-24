@@ -25,7 +25,7 @@ using static IronPython.Modules._ast;
 
 namespace TaskSolverCore
 {
-    public abstract partial class HeatTask : GeneralTask<ElementTermal>
+    public abstract partial class HeatTask : GeneralTask<ElementTermal, SymmetricCSRMatrix>
     {
         public string ChemicalFile { get; set; } = "";
         //public PhaseCalcJMAKModel PhaseCalcJMAKModel { get; }
@@ -40,7 +40,7 @@ namespace TaskSolverCore
 
         public TermalConvergence TermalConvergence { get; }
         public HeatTask(int index, string folder,ITaskData taskData, TermalParameters parameters) : 
-            base(index, folder, taskData, parameters)
+            base(index, folder, taskData, parameters, SolverBuilder.Create(parameters.SolverSettings))
         {
             TaskKind = taskKind.термическая;
 

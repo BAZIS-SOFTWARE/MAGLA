@@ -13,9 +13,9 @@ using TaskSolverCore.Vector;
 
 namespace TaskSolverCore
 {
-    public abstract partial class GeneralTask<T>
+    public abstract partial class GeneralTask<TElement, TMatrix>
     {
-        private void Solve_numeric(ElementsData<T> elemsData, NodeDofMap nodesData)
+        private void Solve_numeric(ElementsData<TElement> elemsData, NodeDofMap nodesData)
         {
             var timeInd = 1;
             var timeStep = TimeSettings.InitTimeStep;
@@ -25,7 +25,7 @@ namespace TaskSolverCore
 
             var matr = FormMatrices(nodesData, elems);
             var vec = FormVectors(nodesData.Count, elemsData.Count);
-            var context = new TaskSystemContext<T>(
+            var context = new TaskSystemContext<TElement>(
                 elemsData, nodesData, matr, vec);
 
             while (time <= TimeSettings.StopTime & Status == TaskStatus.computed) // start step cycle
@@ -115,7 +115,7 @@ namespace TaskSolverCore
         //    }
         //}
 
-        private Tuple<double[], double> SolveSystem(LinearSystem<SymmetricCSRMatrix> system)
+        private Tuple<double[], double> SolveSystem(LinearSystem<TMatrix> system)
         {
             WriteToLog("Численное решение...");
 
@@ -125,24 +125,13 @@ namespace TaskSolverCore
 
             watch.Start();
 
-            double[] solution;
-            double accuracy;
+            var solution = matrixSolver.Solve(system);
+            var accuracy = RelativeResidual(matrix, rightHandSide, solution);
 
             if (matrixSolver is ConjugateGradientGaussPreSolver conjugateGradient)
             {
-                solution = conjugateGradient.Solve(system);
                 var result = conjugateGradient.LastResult!;
-
-                accuracy = RelativeResidual(matrix, rightHandSide, solution);
-
-                WriteToLog(
-                    $" > всего итераций {result.Iterations}, " +
-                    $"относительная невязка {accuracy}");
-            }
-            else
-            {
-                solution = matrixSolver.Solve(system);
-                accuracy = RelativeResidual(matrix, rightHandSide, solution);
+                WriteToLog($" > всего итераций {result.Iterations}, относительная невязка {accuracy}");
             }
 
             watch.Stop();
@@ -152,21 +141,20 @@ namespace TaskSolverCore
             return new Tuple<double[], double>(solution, accuracy);
         }
 
-        private static double RelativeResidual(
-            SymmetricCSRMatrix matrix, double[] rightHandSide, double[] solution)
+        private static double RelativeResidual(TMatrix matrix, double[] rightHandSide, double[] solution)
         {
-            double[] product = matrix.Multiply(solution);
-            double residualSquared = 0.0;
-            double rightHandSideSquared = 0.0;
+            var product = matrix.Multiply(solution);
+            var residualSquared = 0.0;
+            var rightHandSideSquared = 0.0;
 
-            for (int i = 0; i < rightHandSide.Length; i++)
+            for (var i = 0; i < rightHandSide.Length; i++)
             {
-                double residual = rightHandSide[i] - product[i];
+                var residual = rightHandSide[i] - product[i];
                 residualSquared += residual * residual;
                 rightHandSideSquared += rightHandSide[i] * rightHandSide[i];
             }
 
-            double denominator = Math.Sqrt(rightHandSideSquared);
+            var denominator = Math.Sqrt(rightHandSideSquared);
             if (denominator < 1e-300)
                 denominator = 1.0;
 

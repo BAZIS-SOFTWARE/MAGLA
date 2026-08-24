@@ -1,4 +1,5 @@
 ﻿using MaterialDB.MaterialData.MetallurgicalData;
+using CAESolvers;
 using MathNet.Numerics.Distributions;
 using MathNet.Numerics.LinearAlgebra;
 using Model;
@@ -26,7 +27,7 @@ using static IronPython.Modules.PythonIterTools;
 
 namespace TaskSolverCore
 {
-    public abstract partial class MechTask : GeneralTask<ElementMechanical>
+    public abstract partial class MechTask : GeneralTask<ElementMechanical, SymmetricCSRMatrix>
     {
         public string ChemicalFile { get; set; } = "";
         public string ThermalFile { get; set; } = "";
@@ -39,7 +40,7 @@ namespace TaskSolverCore
         internal List<LoadData> LoadData;
 
         public MechTask(int index, string folder,ITaskData taskData, MechanicalParameters parameters) 
-            : base(index, folder, taskData, parameters)
+            : base(index, folder, taskData, parameters, SolverBuilder.Create(parameters.SolverSettings))
         {
             Parameters = parameters;
             ClampData = taskData.Find<ClampData>().ToList();

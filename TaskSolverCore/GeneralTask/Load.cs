@@ -5,7 +5,7 @@ using TaskSolverCore.ElementData;
 
 namespace TaskSolverCore
 {
-    public abstract partial class GeneralTask<T>
+    public abstract partial class GeneralTask<TElement, TMatrix>
     {
         private Result LoadInitialResults(string file)
         {
@@ -23,7 +23,7 @@ namespace TaskSolverCore
         }
 
         /// <inheritdoc/>
-        public void FillElementData(Result result, ElementsData<T> elemsData)
+        public void FillElementData(Result result, ElementsData<TElement> elemsData)
         {
             //Подумать над правильностью реализации хранения и чтения результатов
             //Сейчас температура и фазовый состав хранятся вместе с теплофизикой

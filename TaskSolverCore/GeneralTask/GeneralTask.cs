@@ -52,7 +52,9 @@ namespace TaskSolverCore
         public string Folder { get; internal set; }
     }
 
-    public abstract partial class GeneralTask<T> : GeneralTask where T : ElementItem
+    public abstract partial class GeneralTask<TElement, TMatrix> : GeneralTask
+        where TElement : ElementItem
+        where TMatrix : class, ICsrMatrix
     {
         //ElementsData<T> ElementsData { get; }
         /// <summary>
@@ -62,13 +64,14 @@ namespace TaskSolverCore
 
         enum TaskStatus : int { computed, aborted, finished }
 
-        private readonly ISymmetricLinearSolver matrixSolver;
+        private readonly ILinearSolver<TMatrix> matrixSolver;
 
         internal GeneralParameters Parameters;
 
-        public GeneralTask(int index, string folder, ITaskData taskData, GeneralParameters parameters)
+        protected GeneralTask(int index, string folder, ITaskData taskData, GeneralParameters parameters, ILinearSolver<TMatrix> matrixSolver)
         {
             Parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
+            this.matrixSolver = matrixSolver ?? throw new ArgumentNullException(nameof(matrixSolver));
             MatData = taskData.Find<MatData>().ToList();
             Index = index;
 
@@ -76,8 +79,6 @@ namespace TaskSolverCore
 
             ResultsLoader = new LoadResultsFileDB();
             ResultsLoader.LoadEvent += (ar1, ar2) => { WriteToLog(ar2); };
-
-            matrixSolver = SolverBuilder.Create(parameters.SolverSettings);
 
             TaskType = taskData.TaskType;
 
@@ -179,9 +180,9 @@ namespace TaskSolverCore
         /// <param name="processes"></param>
         /// <param name="iniTemp"></param>
         /// <returns></returns>
-        public abstract ElementsData<T> CreateElementData();
-        public abstract void CheckLoadAndBoundaryConditions(NodeDofMap geo,ElementsData<T> elementsData);
-        public abstract void SaveTaskResults(VectorContainer<double> vec, ElementsData<T> mat, NodeDofMap geo, float time);
+        public abstract ElementsData<TElement> CreateElementData();
+        public abstract void CheckLoadAndBoundaryConditions(NodeDofMap geo,ElementsData<TElement> elementsData);
+        public abstract void SaveTaskResults(VectorContainer<double> vec, ElementsData<TElement> mat, NodeDofMap geo, float time);
         /// <summary>
         /// Формирование глобальных матриц задачи
         /// </summary>
@@ -191,19 +192,14 @@ namespace TaskSolverCore
         public abstract MatrixContainer FormMatrices(NodeDofMap nodes, IEnumerable<IElement> elements);
         public abstract VectorContainer<double> FormVectors(int numbrNodes, int numbrElems);
         public abstract void ClearMatrices(MatrixContainer matrixData);
-        protected abstract void SetPhysicalProperties(TaskSystemContext<T> context);
-        protected abstract void FillMatrices(TaskSystemContext<T> context);
-        protected abstract void ApplyLoads(TaskSystemContext<T> context);
-        protected abstract void ApplyBoundaryConditions(TaskSystemContext<T> context);
-        public abstract Result CreateIntialResult(float time, ElementsData<T> elementsData);
+        protected abstract void SetPhysicalProperties(TaskSystemContext<TElement> context);
+        protected abstract void FillMatrices(TaskSystemContext<TElement> context);
+        protected abstract void ApplyLoads(TaskSystemContext<TElement> context);
+        protected abstract void ApplyBoundaryConditions(TaskSystemContext<TElement> context);
+        public abstract Result CreateIntialResult(float time, ElementsData<TElement> elementsData);
         public abstract DataSet CreateDataSet(List<string> phasesNames);
-        protected abstract void ApplyPreLoads(TaskSystemContext<T> context);
-        protected abstract LinearSystem<SymmetricCSRMatrix> CreateLinearSystem(TaskSystemContext<T> context);
-        protected abstract TaskIterationResult EvaluateIteration(
-            TaskSystemContext<T> context,
-            double[] solution,
-            double solutionChange,
-            double solutionMaximum,
-            bool matrixUpdateScheduled);
+        protected abstract void ApplyPreLoads(TaskSystemContext<TElement> context);
+        protected abstract LinearSystem<TMatrix> CreateLinearSystem(TaskSystemContext<TElement> context);
+        protected abstract TaskIterationResult EvaluateIteration(TaskSystemContext<TElement> context, double[] solution, double solutionChange, double solutionMaximum, bool matrixUpdateScheduled);
     }
 }

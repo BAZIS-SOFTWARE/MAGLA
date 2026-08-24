@@ -10,9 +10,9 @@ using ResultDB;
 
 namespace TaskSolverCore
 {
-    public abstract partial class GeneralTask<T>
+    public abstract partial class GeneralTask<TElement, TMatrix>
     {
-        public void CheckLoadData(NodeDofMap geo, ElementsData<T> elemsData, IEnumerable<CondData> objs)
+        public void CheckLoadData(NodeDofMap geo, ElementsData<TElement> elemsData, IEnumerable<CondData> objs)
         {
             foreach (var dataItem in objs)
             {

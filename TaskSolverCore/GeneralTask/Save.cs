@@ -7,7 +7,7 @@ using ResultDB;
 
 namespace TaskSolverCore
 {
-    public abstract partial class GeneralTask<T>
+    public abstract partial class GeneralTask<TElement, TMatrix>
     {
         private void SaveProjectResults(List<Result> taskResults)
         {
