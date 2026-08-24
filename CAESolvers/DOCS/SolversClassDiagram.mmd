@@ -62,10 +62,12 @@ classDiagram
             +bool UsePreconditioner
             +double BreakdownTolerance
             +Solve(LinearSystem~CSRMatrix~ system) double[]
+            +Solve(LinearSystem~CSRMatrix~ system, double[] initialGuess) double[]
             +Solve(LinearSystem~CSRMatrix~ system, double[] initialGuess, Ilu0Preconditioner preconditioner) double[]
         }
 
         class Ilu0Preconditioner {
+            +Ilu0Preconditioner(CSRMatrix matrix, double pivotTolerance)
             +CSRMatrix Matrix
             +int Size
             +double PivotTolerance
@@ -114,7 +116,7 @@ classDiagram
 
     IterativeSolver --> IterativeSolverResult : LastResult
     ConjugateGradientGaussPreSolver ..> SymmetricCSRMatrix
-    BiCgStabSolver o-- Ilu0Preconditioner
+    BiCgStabSolver ..> Ilu0Preconditioner : creates or accepts
     BiCgStabSolver ..> CSRMatrix
     Ilu0Preconditioner --> CSRMatrix : factorizes
 
