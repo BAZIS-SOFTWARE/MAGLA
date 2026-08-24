@@ -56,6 +56,15 @@ classDiagram
             +bool UsePreconditioner
             +Solve(LinearSystem~SymmetricCSRMatrix~ system) double[]
             +Solve(LinearSystem~SymmetricCSRMatrix~ system, double[] initialGuess) double[]
+            +Solve(LinearSystem~SymmetricCSRMatrix~ system, double[] initialGuess, JacobiPreconditioner preconditioner) double[]
+        }
+
+        class JacobiPreconditioner {
+            +JacobiPreconditioner(SymmetricCSRMatrix matrix, double pivotTolerance)
+            +SymmetricCSRMatrix Matrix
+            +int Size
+            +double PivotTolerance
+            +Apply(double[] source, double[] result)
         }
 
         class BiCgStabSolver {
@@ -115,7 +124,9 @@ classDiagram
     ISymmetricLinearSolver <|.. SymmetricUtduSolver
 
     IterativeSolver --> IterativeSolverResult : LastResult
+    ConjugateGradientGaussPreSolver ..> JacobiPreconditioner : creates or accepts
     ConjugateGradientGaussPreSolver ..> SymmetricCSRMatrix
+    JacobiPreconditioner --> SymmetricCSRMatrix : reads diagonal
     BiCgStabSolver ..> Ilu0Preconditioner : creates or accepts
     BiCgStabSolver ..> CSRMatrix
     Ilu0Preconditioner --> CSRMatrix : factorizes
