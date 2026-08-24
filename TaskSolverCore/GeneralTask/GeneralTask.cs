@@ -126,7 +126,7 @@ namespace TaskSolverCore
             WriteToLog($"Использовано узлов {elemsData.GetNodesNumbers().Count}, " +
     $"элементов {elemsData.GetElementsNumbers().Count}");
 
-            var nodesData = new NodesData(elemsData.GetNodesNumbers());
+            var nodesData = new NodeDofMap(elemsData.GetNodesNumbers());
 
             Result iniResults;
             if (RestartFile == "")
@@ -180,29 +180,30 @@ namespace TaskSolverCore
         /// <param name="iniTemp"></param>
         /// <returns></returns>
         public abstract ElementsData<T> CreateElementData();
-        public abstract void CheckLoadAndBoundaryConditions(NodesData geo,ElementsData<T> elementsData);
-        public abstract void SaveTaskResults(VectorContainer<double> vec, ElementsData<T> mat, NodesData geo, float time);
+        public abstract void CheckLoadAndBoundaryConditions(NodeDofMap geo,ElementsData<T> elementsData);
+        public abstract void SaveTaskResults(VectorContainer<double> vec, ElementsData<T> mat, NodeDofMap geo, float time);
         /// <summary>
         /// Формирование глобальных матриц задачи
         /// </summary>
         /// <param name="nodes"></param>
         /// <param name="elements"></param>
         /// <returns></returns>
-        public abstract MatrixContainer FormMatrices(NodesData nodes, IEnumerable<IElement> elements);
+        public abstract MatrixContainer FormMatrices(NodeDofMap nodes, IEnumerable<IElement> elements);
         public abstract VectorContainer<double> FormVectors(int numbrNodes, int numbrElems);
         public abstract void ClearMatrices(MatrixContainer matrixData);
-        public abstract void SetPhysicalProp(NodesData geo, ElementsData<T> mat, float time);
-        public abstract void FillMatrices(MatrixContainer matr, ElementsData<T> elemData, NodesData geo, float timeStep);
-        public abstract void ApplyLoads(VectorContainer<double> vec, MatrixContainer matr, NodesData geo, ElementsData<T> mat, float time);
-        public abstract void ApplyBoundCondition(VectorContainer<double> vectorData, MatrixContainer matrixData, NodesData geomData, ElementsData<T> mat, float time);
+        protected abstract void SetPhysicalProperties(TaskSystemContext<T> context);
+        protected abstract void FillMatrices(TaskSystemContext<T> context);
+        protected abstract void ApplyLoads(TaskSystemContext<T> context);
+        protected abstract void ApplyBoundaryConditions(TaskSystemContext<T> context);
         public abstract Result CreateIntialResult(float time, ElementsData<T> elementsData);
         public abstract DataSet CreateDataSet(List<string> phasesNames);
-        public abstract void ApplyPreLoads(VectorContainer<double> vec, MatrixContainer matr, NodesData geo, ElementsData<T> mat, float time, float timeStep);
-        //public abstract Tuple<bool, double, float> CheckConvergence(double[] x1, double[] x0, NodesData geo, ElementsData<T> mat, float timeStep);
-
-        public abstract bool CheckMaxDeltaResu(double dx_max);
-        public abstract bool CheckMaxResu(double x_max);
-
-        public abstract double[] CalcResidualForces(double[] x1, NodesData geo, ElementsData<T> mat, float timeStep);
+        protected abstract void ApplyPreLoads(TaskSystemContext<T> context);
+        protected abstract LinearSystem<SymmetricCSRMatrix> CreateLinearSystem(TaskSystemContext<T> context);
+        protected abstract TaskIterationResult EvaluateIteration(
+            TaskSystemContext<T> context,
+            double[] solution,
+            double solutionChange,
+            double solutionMaximum,
+            bool matrixUpdateScheduled);
     }
 }

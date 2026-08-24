@@ -15,30 +15,30 @@ namespace TaskSolverCore
 {
     public abstract partial class GeneralTask<T>
     {
-        private void Solve_numeric(ElementsData<T> elemsData, NodesData nodesData)
+        private void Solve_numeric(ElementsData<T> elemsData, NodeDofMap nodesData)
         {
             var timeInd = 1;
             var timeStep = TimeSettings.InitTimeStep;
             var time = TimeSettings.StartTime + timeStep;
 
-            WriteToLog("Перенумерация матрицы задачи...");
-
             var elems = elemsData.Select(x => x.Element);
-            
-            var bandWidth = nodesData.MakeRenumbering(elems);
-            WriteToLog($"Ширина полосы {bandWidth}");
 
             var matr = FormMatrices(nodesData, elems);
             var vec = FormVectors(nodesData.Count, elemsData.Count);
+            var context = new TaskSystemContext<T>(
+                elemsData, nodesData, matr, vec);
 
             while (time <= TimeSettings.StopTime & Status == TaskStatus.computed) // start step cycle
             {
+                context.Time = time;
+                context.TimeStep = timeStep;
+
                 WriteToLog(string.Format("\t Время {0}  Шаг {1}", time, timeStep));
                 WriteToLog("Определение свойств материалов...");
-                SetPhysicalProp(nodesData, elemsData, time);
+                SetPhysicalProperties(context);
 
                 WriteToLog("Построение матрицы задачи...");
-                FillMatrices(matr, elemsData, nodesData, timeStep);
+                FillMatrices(context);
                 
                 UpdMatrix = false;
                 //if (timeInd == 1) Solve_simbol(matr, nodesData);
@@ -46,7 +46,8 @@ namespace TaskSolverCore
                 //WriteToLog("Приложение первоначальных нагрузок...");
                 //ApplyPreLoads(vec, matr, nodesData, elemsData, time, timeStep);
 
-                var converge = TaskIterator(elemsData, nodesData, matr, vec, ref timeStep, time);
+                var converge = TaskIterator(context);
+                timeStep = context.TimeStep;
 
                 if (converge)
                 {
@@ -71,7 +72,7 @@ namespace TaskSolverCore
             }
         }
 
-        //public void Solve_simbol(MatrixContainer<double> matrixData, NodesData geomData)
+        //public void Solve_simbol(MatrixContainer<double> matrixData, NodeDofMap geomData)
         //{
         //    MatrixNumeric<double> mKC;
 
@@ -114,19 +115,13 @@ namespace TaskSolverCore
         //    }
         //}
 
-        public Tuple<double[], double> Solve_system(VectorArray<double> y, MatrixContainer matrixes)
+        private Tuple<double[], double> SolveSystem(LinearSystem<SymmetricCSRMatrix> system)
         {
             WriteToLog("Численное решение...");
 
             var watch = new Stopwatch();
-
-            SymmetricCSRMatrix matrix;
-            if (TaskKind == taskKind.механическая)
-                matrix = matrixes.Get<SymmetricCSRMatrix>(MatrixType.stifness);
-            else
-                matrix = matrixes.Get<SymmetricCSRMatrix>(MatrixType.heatTransferCapacity);
-
-            double[] rightHandSide = y.Vector.ToArray();
+            var matrix = system.Matrix;
+            var rightHandSide = system.RightHandSide;
 
             watch.Start();
 
@@ -135,7 +130,7 @@ namespace TaskSolverCore
 
             if (matrixSolver is ConjugateGradientGaussPreSolver conjugateGradient)
             {
-                solution = conjugateGradient.Solve(matrix, rightHandSide);
+                solution = conjugateGradient.Solve(system);
                 var result = conjugateGradient.LastResult!;
 
                 accuracy = RelativeResidual(matrix, rightHandSide, solution);
@@ -146,7 +141,7 @@ namespace TaskSolverCore
             }
             else
             {
-                solution = matrixSolver.Solve(matrix, rightHandSide);
+                solution = matrixSolver.Solve(system);
                 accuracy = RelativeResidual(matrix, rightHandSide, solution);
             }
 

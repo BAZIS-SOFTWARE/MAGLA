@@ -140,7 +140,7 @@ namespace TaskSolverCore
             workRow["Eexy"] = strainE[3];
         }
 
-        public override void SaveNodesResults(NodesData geo, VectorArray<double> r, double[] dist,DataTable dataTable)
+        public override void SaveNodesResults(NodeDofMap geo, VectorArray<double> r, double[] dist,DataTable dataTable)
         {
             var nodesCount = geo.Count;
             var nodes = geo.GetNodesNumbs.ToList();
@@ -203,7 +203,7 @@ namespace TaskSolverCore
             }
         }
 
-        //public override VectorArray<double> GetIniDisplacements(NodesData geo, int iter, VectorList<double> x)
+        //public override VectorArray<double> GetIniDisplacements(NodeDofMap geo, int iter, VectorList<double> x)
         //{
         //    return new VectorArray<double>(geo.Count * 2);
         //}

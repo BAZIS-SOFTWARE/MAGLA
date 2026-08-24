@@ -102,18 +102,11 @@ namespace CAESolvers
         /// вызвать <see cref="Analyze"/> и <see cref="Factorize"/> явно и
         /// решать по готовому множителю.
         /// </summary>
-        public double[] Solve(SymmetricCSRMatrix matrix, double[] rightHandSide)
+        public double[] Solve(LinearSystem<SymmetricCSRMatrix> system)
         {
-            if (matrix == null)
-                throw new ArgumentNullException(nameof(matrix));
-            if (rightHandSide == null)
-                throw new ArgumentNullException(nameof(rightHandSide));
+            ArgumentNullException.ThrowIfNull(system);
 
-            if (rightHandSide.Length != matrix.Size)
-                throw new ArgumentException(
-                    $"Размер вектора правой части {rightHandSide.Length} не соответствует размеру матрицы {matrix.Size}");
-
-            return Factorize(matrix).Solve(rightHandSide);
+            return Factorize(system.Matrix).Solve(system.RightHandSide);
         }
     }
 }

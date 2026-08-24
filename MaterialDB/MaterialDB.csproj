@@ -1,21 +1,21 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Library</OutputType>
     <TargetFramework>net8.0</TargetFramework>
+    <Version>1.0.8</Version>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <PublishAot>true</PublishAot>
-    <InvariantGlobalization>true</InvariantGlobalization>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Version>1.0.1</Version>
-    <Platforms>AnyCPU;x64</Platforms>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <SignAssembly>True</SignAssembly>
+    <PackageOutputPath>c:\BazisComponents\IntPackages_v2\$(Configuration)</PackageOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="DOCS\" />
+    <Compile Remove="MaterialData\Parameter.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
 </Project>

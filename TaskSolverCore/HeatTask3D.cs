@@ -15,7 +15,7 @@ namespace TaskSolverCore
             BoundaryCalculator = new HeatBoundary3D();
         }
 
-        public override void CheckLoadAndBoundaryConditions(NodesData geo, ElementsData<ElementTermal> elementsData)
+        public override void CheckLoadAndBoundaryConditions(NodeDofMap geo, ElementsData<ElementTermal> elementsData)
         {
             var els3DHeatData = HeatData.Where(x => x.Group.ObjType == ObjType.Элемент3D);
             CheckLoadData(geo, elementsData,els3DHeatData);

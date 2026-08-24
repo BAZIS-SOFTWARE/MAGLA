@@ -193,8 +193,14 @@ namespace TaskSolverCore
             return new Result(dataSet, time, TaskKind.ToString());
         }    
 
-        public override void ApplyBoundCondition(VectorContainer<double> vec, MatrixContainer matr, NodesData geo, ElementsData<ElementTermal> elemData,float time)
+        protected override void ApplyBoundaryConditions(
+            TaskSystemContext<ElementTermal> context)
         {
+            var vec = context.Vectors;
+            var matr = context.Matrices;
+            var geo = context.Nodes;
+            var elemData = context.Elements;
+            var time = context.Time;
             var y = vec.GetVectorArray(VectorType.force);
             //var x = vec.GetVectorList();
             SymmetricCSRMatrix mKC =
@@ -255,7 +261,7 @@ namespace TaskSolverCore
             }
         }
 
-        private void MediaTemp(VectorContainer<double> vec, MatrixContainer matr, IElement eObj, NodesData geo, double hExch, double mediaTemp)
+        private void MediaTemp(VectorContainer<double> vec, MatrixContainer matr, IElement eObj, NodeDofMap geo, double hExch, double mediaTemp)
         {
             var y = vec.GetVectorArray(VectorType.force);
             //var x = vec.GetVectorList();
@@ -300,8 +306,13 @@ namespace TaskSolverCore
 
         //public abstract Tuple<Matrix<float>, Vector<float>> HeatExchangeData_Calc(IElement elem, float hExch, float mediaTemp);       
 
-        public override void ApplyLoads(VectorContainer<double> vec, MatrixContainer matr, NodesData geo, ElementsData<ElementTermal> elemsData,float time)
+        protected override void ApplyLoads(
+            TaskSystemContext<ElementTermal> context)
         {
+            var vec = context.Vectors;
+            var geo = context.Nodes;
+            var elemsData = context.Elements;
+            var time = context.Time;
             var y = vec.GetVectorArray(VectorType.force);
 
             foreach (var data in HeatData)
@@ -380,8 +391,13 @@ namespace TaskSolverCore
         }
       
 
-        public override void ApplyPreLoads(VectorContainer<double> vec, MatrixContainer matr, NodesData geo, ElementsData<ElementTermal> mat, float time, float timeStep)
+        protected override void ApplyPreLoads(
+            TaskSystemContext<ElementTermal> context)
         {
+            var vec = context.Vectors;
+            var matr = context.Matrices;
+            var geo = context.Nodes;
+            var timeStep = context.TimeStep;
             SymmetricCSRMatrix mC =
                 matr.Get<SymmetricCSRMatrix>(MatrixType.heatCapacity);
             //var mCm = matr[MatrixType.heatCapacity];
@@ -410,8 +426,11 @@ namespace TaskSolverCore
             y.Sum(preQ,y);
         }
 
-        public override void SetPhysicalProp(NodesData geo, ElementsData<ElementTermal> elemsData, float time)
+        protected override void SetPhysicalProperties(
+            TaskSystemContext<ElementTermal> context)
         {
+            var elemsData = context.Elements;
+            var time = context.Time;
             foreach (var data in MatData)
             {
                 var gr = data.Group;
@@ -456,7 +475,7 @@ namespace TaskSolverCore
             }
         }
 
-        //public override Tuple<bool, double, float> CheckConvergence(double [] x1, double[] x0, NodesData geo, ElementsData<ElementTermal> mat, float timeStep)
+        //public override Tuple<bool, double, float> CheckConvergence(double [] x1, double[] x0, NodeDofMap geo, ElementsData<ElementTermal> mat, float timeStep)
         //{
         //    //var x = vec.GetVectorList();
         //    //var dx_max = MatrixSolvers.Error.Absolute(x0, x1);
@@ -472,36 +491,35 @@ namespace TaskSolverCore
         //    return new Tuple<bool, double, float>(true, dx_max, 0);
         //}
 
-        public override bool CheckMaxDeltaResu(double dx_max)
+        protected override TaskIterationResult EvaluateIteration(
+            TaskSystemContext<ElementTermal> context,
+            double[] solution,
+            double solutionChange,
+            double solutionMaximum,
+            bool matrixUpdateScheduled)
         {
-            //var x = vec.GetVectorList();
-            //var dx_max = MatrixSolvers.Error.Absolute(x0, x1);
+            var converged =
+                !TermalConvergence.Is_Switched_Tm ||
+                solutionChange - TermalConvergence.Tm <= 1e-4;
 
-            var convergenceTemp = true;
+            CalcPhase(
+                context.Nodes,
+                context.Elements,
+                context.TimeStep,
+                solution);
 
-            if (TermalConvergence.Is_Switched_Tm && dx_max - TermalConvergence.Tm > 1e-4)
-                convergenceTemp = false;
-
-            return convergenceTemp;
+            return new TaskIterationResult(
+                converged,
+                true,
+                matrixUpdateScheduled,
+                solutionChange,
+                solutionMaximum,
+                0.0);
         }
 
-        public override bool CheckMaxResu(double x_max)
-        {
-            // Пока не контролируем
-            return true;
-        }
-
-        public override double[] CalcResidualForces(double[] x1, NodesData geo, ElementsData<ElementTermal> mat, float timeStep)
-        {
-            CalcPhase(geo, mat, timeStep, x1);
-
-            // заглушка
-            return new double[1];
-        }
 
 
-
-        private void CalcPhase(NodesData geo, ElementsData<ElementTermal> elemsData, float timeStep, double[] x)
+        private void CalcPhase(NodeDofMap geo, ElementsData<ElementTermal> elemsData, float timeStep, double[] x)
         {
             foreach (var elem in elemsData)
             {
@@ -528,37 +546,65 @@ namespace TaskSolverCore
 
         
 
-        public override MatrixContainer FormMatrices(NodesData nodes, IEnumerable<IElement> elements)
+        public override MatrixContainer FormMatrices(NodeDofMap nodes, IEnumerable<IElement> elements)
         {
             var matrixData = new MatrixContainer();
-            List<int>[] incidence = nodes.GetGlobalNodesInc(elements, Dof);
 
             matrixData.AddMatrix(
                 MatrixType.heatTransfer,
-                BuildSymmetricMatrix(incidence));
+                BuildSymmetricMatrix(nodes, elements, Dof));
             matrixData.AddMatrix(
                 MatrixType.heatCapacity,
-                BuildSymmetricMatrix(incidence));
+                BuildSymmetricMatrix(nodes, elements, Dof));
             matrixData.AddMatrix(
                 MatrixType.heatTransferCapacity,
-                BuildSymmetricMatrix(incidence));
+                BuildSymmetricMatrix(nodes, elements, Dof));
 
             return matrixData;
         }
 
-        private static SymmetricCSRMatrix BuildSymmetricMatrix(List<int>[] incidence)
+        protected override LinearSystem<SymmetricCSRMatrix> CreateLinearSystem(TaskSystemContext<ElementTermal> context)
         {
-            var builder = new SymmetricCSRMatrixBuilder(incidence.Length);
-            for (int row = 0; row < incidence.Length; row++)
+            var matrix = context.Matrices.Get<SymmetricCSRMatrix>(
+                MatrixType.heatTransferCapacity);
+            var rightHandSide = context.Vectors
+                .GetVectorArray(VectorType.force)
+                .Vector
+                .ToArray();
+
+            return new LinearSystem<SymmetricCSRMatrix>(matrix, rightHandSide);
+        }
+
+        private static SymmetricCSRMatrix BuildSymmetricMatrix(
+            NodeDofMap nodes,
+            IEnumerable<IElement> elements,
+            int degreesOfFreedom)
+        {
+            var builder = new SymmetricCSRMatrixBuilder(
+                nodes.Count * degreesOfFreedom);
+
+            foreach (var element in elements)
             {
-                foreach (int col in incidence[row])
+                var indices = nodes.GetGlobalInds(
+                    element, degreesOfFreedom);
+
+                for (var localRow = 0;
+                    localRow < indices.Count;
+                    localRow++)
                 {
-                    if (col >= row)
-                        builder.AddToElement(row, col, 1.0);
+                    for (var localColumn = localRow;
+                        localColumn < indices.Count;
+                        localColumn++)
+                    {
+                        builder.AddToElement(
+                            indices[localRow],
+                            indices[localColumn],
+                            1.0);
+                    }
                 }
             }
 
-            SymmetricCSRMatrix matrix = builder.Build();
+            var matrix = builder.Build();
             matrix.ClearValues();
             return matrix;
         }
@@ -606,7 +652,7 @@ namespace TaskSolverCore
             return dataSet;
         }    
 
-        public override void SaveTaskResults(VectorContainer<double> vec, ElementsData<ElementTermal> mat, NodesData geo, float time)
+        public override void SaveTaskResults(VectorContainer<double> vec, ElementsData<ElementTermal> mat, NodeDofMap geo, float time)
         {
             var dataSet = new DataSet();
 

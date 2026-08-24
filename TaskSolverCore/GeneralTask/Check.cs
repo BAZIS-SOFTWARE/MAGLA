@@ -12,7 +12,7 @@ namespace TaskSolverCore
 {
     public abstract partial class GeneralTask<T>
     {
-        public void CheckLoadData(NodesData geo, ElementsData<T> elemsData, IEnumerable<CondData> objs)
+        public void CheckLoadData(NodeDofMap geo, ElementsData<T> elemsData, IEnumerable<CondData> objs)
         {
             foreach (var dataItem in objs)
             {
@@ -31,7 +31,7 @@ namespace TaskSolverCore
             }
         }
 
-        public void CheckBoundaryData(NodesData geo, IEnumerable<CondData> objs)
+        public void CheckBoundaryData(NodeDofMap geo, IEnumerable<CondData> objs)
         {
             foreach (var dataItem in objs)
             {
@@ -51,7 +51,7 @@ namespace TaskSolverCore
                 }
             }
         }
-        //private bool CheckConvergence(ElementsData<T> mat, NodesData geo, List<Result> taskResults, VectorContainer<double> vec, float time, bool iterStatus, int j)
+        //private bool CheckConvergence(ElementsData<T> mat, NodeDofMap geo, List<Result> taskResults, VectorContainer<double> vec, float time, bool iterStatus, int j)
         //{
         //    var convergence = false;
 

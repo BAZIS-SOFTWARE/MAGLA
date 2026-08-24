@@ -50,10 +50,9 @@ namespace CAESolvers
         /// </summary>
         public bool UsePreconditioner { get; set; } = true;
 
-        public override double[] Solve(
-            SymmetricCSRMatrix matrix, double[] rightHandSide)
+        public override double[] Solve(LinearSystem<SymmetricCSRMatrix> system)
         {
-            return Solve(matrix, rightHandSide, null);
+            return Solve(system, null);
         }
 
         /// <summary>
@@ -61,14 +60,14 @@ namespace CAESolvers
         /// <see cref="UsePreconditioner"/>). Если задан initialGuess, он
         /// используется как начальное приближение x0 (иначе x0 = 0).
         /// </summary>
-        public double[] Solve(
-            SymmetricCSRMatrix matrix,
-            double[] b,
-            double[]? initialGuess)
+        public double[] Solve(LinearSystem<SymmetricCSRMatrix> system, double[]? initialGuess)
         {
             LastResult = null;
 
-            ValidateCommonArguments(matrix, b);
+            ValidateCommonArguments(system);
+
+            var matrix = system.Matrix;
+            var b = system.RightHandSide;
 
             var n = matrix.Size;
 

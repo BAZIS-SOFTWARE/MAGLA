@@ -17,7 +17,7 @@ namespace TaskSolverCore
         }
 /// <inheritdoc/>
 
-        public override void CheckLoadAndBoundaryConditions(NodesData nodesData, ElementsData<ElementTermal> elementsData)
+        public override void CheckLoadAndBoundaryConditions(NodeDofMap nodesData, ElementsData<ElementTermal> elementsData)
         {
    
             var heatData = HeatData.Where(x => x.Group.ObjType == ObjType.Элемент2D);

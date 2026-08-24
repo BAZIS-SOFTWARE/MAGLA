@@ -9,15 +9,15 @@ namespace Tests
         [TestMethod]
         public void Solve_ThroughInterface_WorksForConjugateGradientGaussPreSolver()
         {
-            SymmetricCSRMatrix matrix = BuildTridiagonalMatrix(4);
+            var matrix = BuildTridiagonalMatrix(4);
             double[] expected = { 1.0, -2.0, 3.0, 0.5 };
-            double[] rightHandSide = matrix.Multiply(expected);
+            var system = new LinearSystem<SymmetricCSRMatrix>(matrix, matrix.Multiply(expected));
             ISymmetricLinearSolver solver = new ConjugateGradientGaussPreSolver
             {
                 RelativeTolerance = 1e-12
             };
 
-            double[] actual = solver.Solve(matrix, rightHandSide);
+            var actual = solver.Solve(system);
 
             AssertSolution(expected, actual, 1e-10);
         }
@@ -25,12 +25,12 @@ namespace Tests
         [TestMethod]
         public void Solve_ThroughInterface_WorksForSymmetricUtduSolver()
         {
-            SymmetricCSRMatrix matrix = BuildTridiagonalMatrix(4);
+            var matrix = BuildTridiagonalMatrix(4);
             double[] expected = { 1.0, -2.0, 3.0, 0.5 };
-            double[] rightHandSide = matrix.Multiply(expected);
+            var system = new LinearSystem<SymmetricCSRMatrix>(matrix, matrix.Multiply(expected));
             ISymmetricLinearSolver solver = new SymmetricUtduSolver();
 
-            double[] actual = solver.Solve(matrix, rightHandSide);
+            var actual = solver.Solve(system);
 
             AssertSolution(expected, actual, 1e-10);
         }
@@ -38,8 +38,9 @@ namespace Tests
         [TestMethod]
         public void ConjugateGradientGaussPreSolver_ThroughInterface_ReturnsLastApproximationWhenNotConverged()
         {
-            SymmetricCSRMatrix matrix = BuildTridiagonalMatrix(4);
+            var matrix = BuildTridiagonalMatrix(4);
             double[] rightHandSide = { 1.0, 2.0, 3.0, 4.0 };
+            var system = new LinearSystem<SymmetricCSRMatrix>(matrix, rightHandSide);
             var conjugateGradient = new ConjugateGradientGaussPreSolver
             {
                 RelativeTolerance = 1e-30,
@@ -48,8 +49,8 @@ namespace Tests
             };
             ISymmetricLinearSolver solver = conjugateGradient;
 
-            double[] solution = solver.Solve(matrix, rightHandSide);
-            IterativeSolverResult result = conjugateGradient.LastResult!;
+            var solution = solver.Solve(system);
+            var result = conjugateGradient.LastResult!;
 
             Assert.AreSame(solution, result.Solution);
             Assert.IsFalse(result.Converged);

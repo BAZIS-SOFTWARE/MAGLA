@@ -238,7 +238,7 @@ namespace Tests
             var matrix = BuildDiagonalMatrix(diagonal);
             var b = matrix.Multiply(expectedSolution);
 
-            var solution = new SymmetricUtduSolver().Solve(matrix, b);
+            var solution = new SymmetricUtduSolver().Solve(new LinearSystem<SymmetricCSRMatrix>(matrix, b));
 
             for (int i = 0; i < expectedSolution.Length; i++)
                 Assert.AreEqual(expectedSolution[i], solution[i], 1e-9 * Math.Abs(expectedSolution[i]) + 1e-12);
@@ -250,7 +250,7 @@ namespace Tests
         {
             var matrix = new SymmetricCSRMatrixBuilder(0).Build();
 
-            var solution = new SymmetricUtduSolver().Solve(matrix, Array.Empty<double>());
+            var solution = new SymmetricUtduSolver().Solve(new LinearSystem<SymmetricCSRMatrix>(matrix, Array.Empty<double>()));
 
             Assert.AreEqual(0, solution.Length);
         }
@@ -264,7 +264,7 @@ namespace Tests
         {
             var matrix = BuildGridMatrix(5, 5, 5, 2);
 
-            var solution = new SymmetricUtduSolver().Solve(matrix, new double[matrix.Size]);
+            var solution = new SymmetricUtduSolver().Solve(new LinearSystem<SymmetricCSRMatrix>(matrix, new double[matrix.Size]));
 
             CollectionAssert.AreEqual(new double[matrix.Size], solution);
         }
@@ -291,7 +291,7 @@ namespace Tests
             var b = BuildVector(size, seed: 7);
 
             var solver = new SymmetricUtduSolver(new UtduSolverOptions { Ordering = ordering });
-            var solution = solver.Solve(matrix, b);
+            var solution = solver.Solve(new LinearSystem<SymmetricCSRMatrix>(matrix, b));
             var expected = SolveDense(matrix, b);
 
             Assert.IsTrue(MaxRelativeDifference(solution, expected) < 1e-9,
@@ -312,13 +312,14 @@ namespace Tests
             var matrix = BuildGridMatrix(7, 7, 7, 2);
             var b = BuildVector(matrix.Size, seed: 11);
 
-            var direct = new SymmetricUtduSolver().Solve(matrix, b);
+            var system = new LinearSystem<SymmetricCSRMatrix>(matrix, b);
+            var direct = new SymmetricUtduSolver().Solve(system);
             var iterativeSolver = new ConjugateGradientGaussPreSolver
             {
                 RelativeTolerance = 1e-12,
                 MaxIterations = 20000
             };
-            var iterative = iterativeSolver.Solve(matrix, b);
+            var iterative = iterativeSolver.Solve(system);
 
             Assert.IsTrue(iterativeSolver.LastResult!.Converged,
                 "Итерационный решатель не сошёлся — сравнивать не с чем");
@@ -416,12 +417,12 @@ namespace Tests
             var natural = new SymmetricUtduSolver(new UtduSolverOptions
             {
                 Ordering = FillReducingOrdering.Natural
-            }).Solve(matrix, b);
+            }).Solve(new LinearSystem<SymmetricCSRMatrix>(matrix, b));
 
             var reordered = new SymmetricUtduSolver(new UtduSolverOptions
             {
                 Ordering = FillReducingOrdering.ApproximateMinimumDegree
-            }).Solve(matrix, b);
+            }).Solve(new LinearSystem<SymmetricCSRMatrix>(matrix, b));
 
             Assert.IsTrue(MaxRelativeDifference(reordered, natural) < 1e-9,
                 $"Решения при разных перестановках расходятся: {MaxRelativeDifference(reordered, natural):E3}");
@@ -584,7 +585,7 @@ namespace Tests
             var matrix = BuildTridiagonalMatrix(8, 4.0, -1.0);
             var solver = new SymmetricUtduSolver();
 
-            Assert.ThrowsException<ArgumentException>(() => solver.Solve(matrix, new double[length]));
+            Assert.ThrowsException<ArgumentException>(() => new LinearSystem<SymmetricCSRMatrix>(matrix, new double[length]));
             Assert.ThrowsException<ArgumentException>(() => solver.Factorize(matrix).Solve(new double[length]));
         }
 

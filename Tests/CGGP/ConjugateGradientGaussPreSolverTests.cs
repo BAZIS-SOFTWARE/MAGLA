@@ -63,9 +63,10 @@ namespace Tests
         {
             var matrix = BuildDiagonalMatrix(diagonal);
             var b = matrix.Multiply(expectedSolution);
+            var system = new LinearSystem<SymmetricCSRMatrix>(matrix, b);
 
             var solver = new ConjugateGradientGaussPreSolver();
-            var solution = solver.Solve(matrix, b, initialGuess);
+            var solution = solver.Solve(system, initialGuess);
             var result = solver.LastResult!;
 
             Assert.IsTrue(result.Converged);
@@ -88,9 +89,10 @@ namespace Tests
         {
             var matrix = BuildTridiagonalMatrix(5, diagonal: 4.0, offDiagonal: -1.0);
             var b = new[] { 1.0, 2.0, 3.0, 4.0, 5.0 };
+            var system = new LinearSystem<SymmetricCSRMatrix>(matrix, b);
 
             var solver = new ConjugateGradientGaussPreSolver { RelativeTolerance = 1e-10, UsePreconditioner = usePreconditioner };
-            var solution = solver.Solve(matrix, b);
+            var solution = solver.Solve(system);
             var result = solver.LastResult!;
 
             Assert.IsTrue(result.Converged);
@@ -116,7 +118,15 @@ namespace Tests
 
             var solver = new ConjugateGradientGaussPreSolver();
 
-            Assert.ThrowsException<ArgumentException>(() => solver.Solve(matrix, b, initialGuess));
+            if (mismatchInitialGuess)
+            {
+                var system = new LinearSystem<SymmetricCSRMatrix>(matrix, b);
+                Assert.ThrowsException<ArgumentException>(() => solver.Solve(system, initialGuess));
+            }
+            else
+            {
+                Assert.ThrowsException<ArgumentException>(() => new LinearSystem<SymmetricCSRMatrix>(matrix, b));
+            }
         }
     }
 }

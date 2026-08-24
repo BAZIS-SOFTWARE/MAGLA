@@ -216,7 +216,7 @@ namespace TaskSolverCore
 
         public abstract Vector<double> GetDisplacements(List<int> inds, double[] x);      
 
-        public override void CheckLoadAndBoundaryConditions(NodesData geo, ElementsData<ElementMechanical> elementsData)
+        public override void CheckLoadAndBoundaryConditions(NodeDofMap geo, ElementsData<ElementMechanical> elementsData)
         {
             var nodeLoadData = LoadData.Where(x => x.Group.ObjType == ObjType.Узел);
             CheckLoadData(geo, elementsData,nodeLoadData);
@@ -225,7 +225,7 @@ namespace TaskSolverCore
             CheckLoadData(geo, elementsData,nodeClampData);
         }
 
-        public override void SaveTaskResults(VectorContainer<double> vec, ElementsData<ElementMechanical> mat,NodesData geo,float time)
+        public override void SaveTaskResults(VectorContainer<double> vec, ElementsData<ElementMechanical> mat,NodeDofMap geo,float time)
         {
             var x = vec.GetVectorArray(VectorType.result);
             var y = vec.GetVectorArray(VectorType.force);
@@ -242,7 +242,7 @@ namespace TaskSolverCore
             taskResults.Add(new Result(dataSet,time,TaskKind.ToString()));
         }
 
-        private void SaveElemensResults(ElementsData<ElementMechanical> elemsData, NodesData geo, float time, double[] x, DataTable dataTable)
+        private void SaveElemensResults(ElementsData<ElementMechanical> elemsData, NodeDofMap geo, float time, double[] x, DataTable dataTable)
         {
             foreach (var elemData in elemsData)
             {
@@ -310,11 +310,15 @@ namespace TaskSolverCore
 
         public abstract void SaveElemResultsTensor(Vector<double> strain, Vector<double> stress, Vector<double> strainE, DataRow workRow);
 
-        public abstract void SaveNodesResults(NodesData geo, VectorArray<double> r, double[] dist, DataTable dataTable);
+        public abstract void SaveNodesResults(NodeDofMap geo, VectorArray<double> r, double[] dist, DataTable dataTable);
         
 
-        public override void SetPhysicalProp(NodesData geo, ElementsData<ElementMechanical> elemsData, float time)
+        protected override void SetPhysicalProperties(
+            TaskSystemContext<ElementMechanical> context)
         {
+            var geo = context.Nodes;
+            var elemsData = context.Elements;
+            var time = context.Time;
             var resultLast = taskResults.Last();
 
             Result? termalResult;
@@ -462,7 +466,7 @@ namespace TaskSolverCore
         }
 
 
-        //public override Tuple<bool, double, float> CheckConvergence(double[] x1, double[] x0, NodesData geo, ElementsData<ElementMechanical> mat, float timeStep)
+        //public override Tuple<bool, double, float> CheckConvergence(double[] x1, double[] x0, NodeDofMap geo, ElementsData<ElementMechanical> mat, float timeStep)
         //{
         //    var dx = 0.0;
         //    var dy = new double[mat.Count];
@@ -480,7 +484,11 @@ namespace TaskSolverCore
         //}
 
         /// <inheritdoc/>
-        public override double[] CalcResidualForces(double[] x, NodesData geo, ElementsData<ElementMechanical> mat, float timeStep)
+        private double[] CalculatePhysicalResidual(
+            double[] x,
+            NodeDofMap geo,
+            ElementsData<ElementMechanical> mat,
+            bool matrixUpdateScheduled)
         {
             //bool checkConverg = true;
             var dy = new double[mat.Count];
@@ -521,7 +529,7 @@ namespace TaskSolverCore
                     //chech yield
                     if (dy[counter] - MechanicalConvergence.SiStm > 1e-4)
                     {
-                        if (UpdMatrix)
+                        if (matrixUpdateScheduled)
                         {
                             item.Phi = (float)Math.Pow(dy[counter], MechanicalConvergence.MaterialPlasticityCoeff) * item.Phi;
                             item.Tensor.Clear();
@@ -553,26 +561,44 @@ namespace TaskSolverCore
             return dy;
         }
 
-        public override bool CheckMaxDeltaResu(double dx_max)
+        protected override TaskIterationResult EvaluateIteration(
+            TaskSystemContext<ElementMechanical> context,
+            double[] solution,
+            double solutionChange,
+            double solutionMaximum,
+            bool matrixUpdateScheduled)
         {
-            if (dx_max - MechanicalConvergence.DUm > 1e-4)
-                return false;
+            var converged =
+                solutionChange - MechanicalConvergence.DUm <= 1e-4;
+            var canContinue =
+                !MechanicalConvergence.Is_Switched_Um ||
+                solutionMaximum - MechanicalConvergence.Um <= 1e-4;
+            var residuals = CalculatePhysicalResidual(
+                solution,
+                context.Nodes,
+                context.Elements,
+                matrixUpdateScheduled);
+            var physicalResidual = residuals.Max();
 
-            return true;// Условие сходимости
+            if (physicalResidual > 30.0)
+                canContinue = false;
+
+            return new TaskIterationResult(
+                converged,
+                canContinue,
+                matrixUpdateScheduled,
+                solutionChange,
+                solutionMaximum,
+                physicalResidual);
         }
 
-        public override bool CheckMaxResu(double x_max)
+        protected override void ApplyBoundaryConditions(
+            TaskSystemContext<ElementMechanical> context)
         {
-            if (MechanicalConvergence.Is_Switched_Um)
-            {
-                if (x_max - MechanicalConvergence.Um > 1e-4)
-                    return false;
-            }
-            return true;// Условие сходимости
-        }
-
-        public override void ApplyBoundCondition(VectorContainer<double> vec, MatrixContainer matr, NodesData geo, ElementsData<ElementMechanical> mat, float time)
-        {
+            var vec = context.Vectors;
+            var matr = context.Matrices;
+            var geo = context.Nodes;
+            var time = context.Time;
             var y = vec.GetVectorArray(VectorType.force);
 
             SymmetricCSRMatrix mK =
@@ -616,8 +642,13 @@ namespace TaskSolverCore
             //var str = mK.ToString();
         }
 
-        public override void ApplyLoads(VectorContainer<double> vec, MatrixContainer matr, NodesData geo, ElementsData<ElementMechanical> mat, float time)
+        protected override void ApplyLoads(
+            TaskSystemContext<ElementMechanical> context)
         {
+            var vec = context.Vectors;
+            var matr = context.Matrices;
+            var geo = context.Nodes;
+            var time = context.Time;
             var y = vec.GetVectorArray(VectorType.force);
             SymmetricCSRMatrix mK =
                 matr.Get<SymmetricCSRMatrix>(MatrixType.stifness);
@@ -665,8 +696,12 @@ namespace TaskSolverCore
 
 
 
-        public override void ApplyPreLoads(VectorContainer<double> vec, MatrixContainer matr, NodesData geo, ElementsData<ElementMechanical> mat, float time, float timeStep)
+        protected override void ApplyPreLoads(
+            TaskSystemContext<ElementMechanical> context)
         {          
+            var vec = context.Vectors;
+            var geo = context.Nodes;
+            var mat = context.Elements;
             var y = vec.GetVectorArray(VectorType.force);
             var p = vec.GetVectorArray(VectorType.plastic);
             var r = vec.GetVectorArray(VectorType.reaction);
@@ -718,7 +753,7 @@ namespace TaskSolverCore
             y.Sum(cur.Vector,y);
         }
 
-        //public abstract VectorArray<double> GetIniDisplacements(NodesData geo, int iter, VectorList<double> x);
+        //public abstract VectorArray<double> GetIniDisplacements(NodeDofMap geo, int iter, VectorList<double> x);
 
         public abstract void SummForce_Calc(List<int> inds, VectorArray<double> nLoads, Vector<double> eLoads);
 
@@ -726,30 +761,58 @@ namespace TaskSolverCore
  /// <inheritdoc/>
  
 
-        public override MatrixContainer FormMatrices(NodesData nodes, IEnumerable<IElement> elements)
+        public override MatrixContainer FormMatrices(NodeDofMap nodes, IEnumerable<IElement> elements)
         {
             var matrixData = new MatrixContainer();
-            List<int>[] incidence = nodes.GetGlobalNodesInc(elements, Dof);
             matrixData.AddMatrix(
                 MatrixType.stifness,
-                BuildSymmetricMatrix(incidence));
+                BuildSymmetricMatrix(nodes, elements, Dof));
 
             return matrixData;
         }
 
-        private static SymmetricCSRMatrix BuildSymmetricMatrix(List<int>[] incidence)
+        protected override LinearSystem<SymmetricCSRMatrix> CreateLinearSystem(TaskSystemContext<ElementMechanical> context)
         {
-            var builder = new SymmetricCSRMatrixBuilder(incidence.Length);
-            for (int row = 0; row < incidence.Length; row++)
+            var matrix = context.Matrices.Get<SymmetricCSRMatrix>(
+                MatrixType.stifness);
+            var rightHandSide = context.Vectors
+                .GetVectorArray(VectorType.force)
+                .Vector
+                .ToArray();
+
+            return new LinearSystem<SymmetricCSRMatrix>(matrix, rightHandSide);
+        }
+
+        private static SymmetricCSRMatrix BuildSymmetricMatrix(
+            NodeDofMap nodes,
+            IEnumerable<IElement> elements,
+            int degreesOfFreedom)
+        {
+            var builder = new SymmetricCSRMatrixBuilder(
+                nodes.Count * degreesOfFreedom);
+
+            foreach (var element in elements)
             {
-                foreach (int col in incidence[row])
+                var indices = nodes.GetGlobalInds(
+                    element, degreesOfFreedom);
+
+                for (var localRow = 0;
+                    localRow < indices.Count;
+                    localRow++)
                 {
-                    if (col >= row)
-                        builder.AddToElement(row, col, 1.0);
+                    for (var localColumn = localRow;
+                        localColumn < indices.Count;
+                        localColumn++)
+                    {
+                        builder.AddToElement(
+                            indices[localRow],
+                            indices[localColumn],
+                            1.0);
+                    }
                 }
             }
 
-            SymmetricCSRMatrix matrix = builder.Build();
+            var matrix = builder.Build();
             matrix.ClearValues();
             return matrix;
         }
@@ -806,8 +869,12 @@ namespace TaskSolverCore
                 throw new Exception($"Не найден файл {termalFile}...");
         }
 
-        public override void FillMatrices(MatrixContainer matr, ElementsData<ElementMechanical> elemData, NodesData geo, float timeStep)
+        protected override void FillMatrices(
+            TaskSystemContext<ElementMechanical> context)
         {
+            var matr = context.Matrices;
+            var elemData = context.Elements;
+            var geo = context.Nodes;
             SymmetricCSRMatrix mKC =
                 matr.Get<SymmetricCSRMatrix>(MatrixType.stifness);
 

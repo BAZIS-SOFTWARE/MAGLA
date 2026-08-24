@@ -12,12 +12,13 @@ namespace TaskSolverCore
 {
     public abstract partial class HeatTask
     {
-        public override void FillMatrices(
-            MatrixContainer matr,
-            ElementsData<ElementTermal> elemData,
-            NodesData geo,
-            float timeStep)
+        protected override void FillMatrices(
+            TaskSystemContext<ElementTermal> context)
         {
+            var matr = context.Matrices;
+            var elemData = context.Elements;
+            var geo = context.Nodes;
+            var timeStep = context.TimeStep;
             SymmetricCSRMatrix mK =
                 matr.Get<SymmetricCSRMatrix>(MatrixType.heatTransfer);
             SymmetricCSRMatrix mC =

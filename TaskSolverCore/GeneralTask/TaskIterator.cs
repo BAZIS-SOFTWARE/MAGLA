@@ -13,15 +13,10 @@ namespace TaskSolverCore
 {
     public abstract partial class GeneralTask<T>
     {
-        private bool TaskIterator(
-            ElementsData<T> elemData,
-            NodesData geo,
-            MatrixContainer matr,
-            VectorContainer<double> vec,
-            ref float timeStep,
-            float time)
+        private bool TaskIterator(TaskSystemContext<T> context)
         {
             var converge = false;
+            var timeStep = context.TimeStep;
 
             for (var j = 1; j < Iterations; j++)  // start iteration cycle
             {
@@ -30,22 +25,22 @@ namespace TaskSolverCore
                 //{
                     if(UpdMatrix)
                     {
-                        ClearVectorLoads(vec);
-                        ClearMatrices(matr);
+                        ClearVectorLoads(context.Vectors);
+                        ClearMatrices(context.Matrices);
                         WriteToLog("Построение матрицы задачи...");
-                        FillMatrices(matr, elemData, geo, timeStep);
+                        FillMatrices(context);
                         UpdMatrix = false;
                     }
 
 
                     WriteToLog("Приложение первоначальных нагрузок...");
-                    ApplyPreLoads(vec, matr, geo, elemData, time, timeStep);
+                    ApplyPreLoads(context);
                 //}
                 WriteToLog("Приложение нагрузок и граничных условий...");
-                ApplyLoads(vec, matr, geo, elemData, time);
-                ApplyBoundCondition(vec, matr, geo, elemData, time);
+                ApplyLoads(context);
+                ApplyBoundaryConditions(context);
 
-                var resu = Solve_system(vec.GetVectorArray(VectorType.force), matr);
+                var resu = SolveSystem(CreateLinearSystem(context));
 
                 var x1 = resu.Item1;
                 var accuracy = resu.Item2;
@@ -54,7 +49,7 @@ namespace TaskSolverCore
                 var iteratorStatus = CheckAccuracy(accuracy);
                 if (iteratorStatus)
                 {
-                    var x0 = vec.GetVectorArray(VectorType.result);
+                    var x0 = context.Vectors.GetVectorArray(VectorType.result);
 
                     var dx_max = MatrixSolvers.Error.AbsoluteMax(x0.Vector, x1);
 
@@ -63,30 +58,33 @@ namespace TaskSolverCore
 
                     var x_max = x1.Max(x => Math.Abs(x));
 
-                    // если требуется сообщить об обновлении матрицы задачи
-                    if (j % Parameters.UpdMatrixIteration == 0)
-                        UpdMatrix = true;
- 
-                    if(!CheckMaxResu(x_max))
-                        iteratorStatus = false;
+                    var matrixUpdateScheduled =
+                        j % Parameters.UpdMatrixIteration == 0;
+                    var iterationResult = EvaluateIteration(
+                        context,
+                        x1,
+                        dx_max,
+                        x_max,
+                        matrixUpdateScheduled);
 
-                    converge = CheckMaxDeltaResu(dx_max);
-                    var dy = CalcResidualForces(x1, geo, elemData, timeStep);
-                    //var check = CheckConvergence(x1, x0.Vector, geo, elemData, timeStep);
+                    UpdMatrix = iterationResult.MatrixMustBeUpdated;
+                    converge = iterationResult.Converged;
+                    iteratorStatus = iterationResult.CanContinue;
 
-                    var dy_max = dy.Max();
-                    // временно для проверки
-                    if (dy_max > 30)
-                        iteratorStatus = false;
+                    context.Vectors.RemoveVectors(VectorType.result);
+                    context.Vectors.AddVector(
+                        VectorType.result,
+                        new VectorArray<double>(x1));
 
-                    vec.RemoveVectors(VectorType.result);
-                    vec.AddVector(VectorType.result, new VectorArray<double>(x1));
-
-                    WriteToLog(string.Format(" > Max x {0}, Div dx {1} dy {2}", x_max,dx_max, dy_max));
+                    WriteToLog(
+                        $" > Max x {iterationResult.SolutionMaximum}, " +
+                        $"Div dx {iterationResult.SolutionChange} " +
+                        $"dy {iterationResult.PhysicalResidual}");
                 }
                 else WriteToLog(string.Format(" Итерации остановлены"));
 
                 timeStep = CheckTimeStep(timeStep, converge, ref iteratorStatus, j);
+                context.TimeStep = timeStep;
 
                 if (converge | !iteratorStatus)
                     break;
