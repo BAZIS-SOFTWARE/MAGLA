@@ -20,6 +20,18 @@ namespace TaskSolverCore
                 : CreateConjugateGradientSolver(settings);
         }
 
+        /// <summary>Создаёт встроенный решатель для общей CSR-матрицы.</summary>
+        public static ILinearSolver<CSRMatrix> CreateGeneral(SolverSettings settings)
+        {
+            ArgumentNullException.ThrowIfNull(settings);
+
+            if (!string.Equals(settings.Solver, "BiCGStab", StringComparison.OrdinalIgnoreCase))
+                throw new NotSupportedException($"Решатель '{settings.Solver}' не поддерживает общую CSR-матрицу.");
+
+            var tolerance = settings.Precision > 0 ? settings.Precision : 1e-8;
+            return new BiCgStabSolver { RelativeTolerance = tolerance, MaxIterations = settings.MaxIter };
+        }
+
         /// <summary>
         /// Создаёт решатель произвольного типа матрицы через фабрику физического модуля.
         /// </summary>

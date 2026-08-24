@@ -58,6 +58,20 @@ classDiagram
             +Solve(LinearSystem~SymmetricCSRMatrix~ system, double[] initialGuess) double[]
         }
 
+        class BiCgStabSolver {
+            +bool UsePreconditioner
+            +double BreakdownTolerance
+            +Solve(LinearSystem~CSRMatrix~ system) double[]
+            +Solve(LinearSystem~CSRMatrix~ system, double[] initialGuess, Ilu0Preconditioner preconditioner) double[]
+        }
+
+        class Ilu0Preconditioner {
+            +CSRMatrix Matrix
+            +int Size
+            +double PivotTolerance
+            +Apply(double[] rightHandSide, double[] result)
+        }
+
         class SymmetricUtduSolver {
             +UtduSolverOptions Options
             +Analyze(SymmetricCSRMatrix matrix) UtduSymbolicFactorization
@@ -80,6 +94,7 @@ classDiagram
         class SolverBuilder {
             <<static>>
             +CreateSymmetric(SolverSettings settings) ILinearSolver~SymmetricCSRMatrix~
+            +CreateGeneral(SolverSettings settings) ILinearSolver~CSRMatrix~
             +Create~TMatrix~(SolverSettings settings, solverFactory) ILinearSolver~TMatrix~
         }
     }
@@ -93,11 +108,15 @@ classDiagram
     ILinearSolver <|.. IterativeSolver
     ILinearSolver <|-- ISymmetricLinearSolver
     IterativeSolver <|-- ConjugateGradientGaussPreSolver
+    IterativeSolver <|-- BiCgStabSolver
     ISymmetricLinearSolver <|.. ConjugateGradientGaussPreSolver
     ISymmetricLinearSolver <|.. SymmetricUtduSolver
 
     IterativeSolver --> IterativeSolverResult : LastResult
     ConjugateGradientGaussPreSolver ..> SymmetricCSRMatrix
+    BiCgStabSolver o-- Ilu0Preconditioner
+    BiCgStabSolver ..> CSRMatrix
+    Ilu0Preconditioner --> CSRMatrix : factorizes
 
     SymmetricUtduSolver o-- UtduSolverOptions
     SymmetricUtduSolver --> UtduSymbolicFactorization : Analyze
@@ -107,4 +126,5 @@ classDiagram
 
     SolverBuilder ..> ILinearSolver : creates
     SolverBuilder ..> ConjugateGradientGaussPreSolver
+    SolverBuilder ..> BiCgStabSolver
     SolverBuilder ..> SymmetricUtduSolver
