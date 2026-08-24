@@ -4,6 +4,7 @@ using System.Reflection;
 using Project.Interfaces.Tasks;
 using Project.Interfaces;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Project.TaskParameters;
 using Project.IO;
 
@@ -98,15 +99,21 @@ namespace TaskSolverCore
 
                 if (activeModule == "ThermalSolver")
                 {
+                    var thermalJson = File.ReadAllText(subStrs[2]);
+                    var thermalParameters = JsonConvert.DeserializeObject<TermalParameters>(thermalJson, settingsSerializer) ?? throw new JsonSerializationException("Не удалось прочитать параметры тепловой задачи.");
+                    var thermalData = JObject.Parse(thermalJson);
+                    var transportOptions = thermalData["HeatTransport"]?.ToObject<HeatTransportOptions>(JsonSerializer.Create(settingsSerializer)) ?? new HeatTransportOptions();
+                    var convection = thermalData.Value<bool>("Convection");
+                    var convectionLoad = thermalData["ConvectionlLoad"]?.ToObject<double[]>();
+                    if (convectionLoad is { Length: > 0 })
+                        transportOptions.Convection.Velocity = convectionLoad;
                     if (project.TaskData.TaskType == TaskType.Volume |
                         project.TaskData.TaskType == TaskType.Volume_mixed)
-                        taskCalc = new HeatTask3D(index, folder,project.TaskData,
-                            JsonConvert.DeserializeObject<TermalParameters>
-                    (File.ReadAllText(subStrs[2]), settingsSerializer));
+                        taskCalc = new HeatTask3D(index, folder, project.TaskData, thermalParameters, transportOptions, convection);
+                    else if (project.TaskData.TaskType == TaskType.Plain)
+                        taskCalc = new HeatTask2DPlane(index, folder, project.TaskData, thermalParameters, transportOptions, convection);
                     else
-                        taskCalc = new HeatTask2DAxi(index, folder, project.TaskData,
-                             JsonConvert.DeserializeObject<TermalParameters>
-                    (File.ReadAllText(subStrs[2]), settingsSerializer));
+                        taskCalc = new HeatTask2DAxi(index, folder, project.TaskData, thermalParameters, transportOptions, convection);
                 }
                 else
                 {

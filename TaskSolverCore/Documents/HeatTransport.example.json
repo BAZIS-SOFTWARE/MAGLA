@@ -1,0 +1,24 @@
+{
+  "Convection": true,
+  "ConvectionIsFile": false,
+  "ConvectionFile": "",
+  "ConvectionlLoad": [0.001, 0.0, 0.0],
+  "HeatTransport": {
+    "Convection": {
+      "ElementVelocities": {},
+      "NodeVelocities": {}
+    },
+    "FrictionHeat": {
+      "Enabled": true,
+      "SurfaceGroups": ["tool_contact"],
+      "Beta": 1.0,
+      "Consistency": 20000000.0,
+      "VelocityExponent": 0.0,
+      "MaterialEffusivity": 19000.0,
+      "ToolEffusivity": 12000.0,
+      "ToolLinearVelocity": [0.0, 0.0, 0.0],
+      "ToolAngularVelocity": [0.0, 0.0, 94.2477796077],
+      "RotationCenter": [0.0, 0.0, 0.0]
+    }
+  }
+}

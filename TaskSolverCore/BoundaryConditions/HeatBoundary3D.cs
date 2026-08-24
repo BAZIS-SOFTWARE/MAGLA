@@ -49,7 +49,35 @@ namespace TaskSolverCore.BoundaryConditions
 
         public Vector<double> FlowHeat_Calc(IElement element, float flowValue)
         {
-            throw new NotImplementedException();
+            return FlowHeat_Calc(element, (_, _, _) => flowValue);
+        }
+
+        public Vector<double> FlowHeat_Calc(IElement element, Func<double, double, double, double> flowValue)
+        {
+            var result = Vector<double>.Build.Dense(element.NumberOfPoints);
+            var x = element.GetVertexes().Select(node => node.Position._x).ToArray();
+            var y = element.GetVertexes().Select(node => node.Position._y).ToArray();
+            var z = element.GetVertexes().Select(node => node.Position._z).ToArray();
+            foreach (var intPoint in element.GetIntegralPoints())
+            {
+                var derivatives = element.GetDerivativesFormFunctions(intPoint);
+                var functions = element.GetFormFunctions(intPoint);
+                var dxKsi = CalcInterpolatedValue(x, derivatives.GetRow(0));
+                var dyKsi = CalcInterpolatedValue(y, derivatives.GetRow(0));
+                var dzKsi = CalcInterpolatedValue(z, derivatives.GetRow(0));
+                var dxEta = CalcInterpolatedValue(x, derivatives.GetRow(1));
+                var dyEta = CalcInterpolatedValue(y, derivatives.GetRow(1));
+                var dzEta = CalcInterpolatedValue(z, derivatives.GetRow(1));
+                var e = dxKsi * dxKsi + dyKsi * dyKsi + dzKsi * dzKsi;
+                var g = dxEta * dxEta + dyEta * dyEta + dzEta * dzEta;
+                var f = dxKsi * dxEta + dyKsi * dyEta + dzKsi * dzEta;
+                var area = Math.Sqrt(Math.Max(0.0, e * g - f * f)) * intPoint.Weigt;
+                var px = CalcInterpolatedValue(x, functions);
+                var py = CalcInterpolatedValue(y, functions);
+                var pz = CalcInterpolatedValue(z, functions);
+                result += Vector<double>.Build.DenseOfArray(functions) * (flowValue(px, py, pz) * area);
+            }
+            return result;
         }
 
 /// <inheritdoc/>

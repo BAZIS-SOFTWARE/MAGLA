@@ -50,6 +50,11 @@ namespace TaskSolverCore.BoundaryConditions
 
         public Vector<double> FlowHeat_Calc(IElement elem, float flowValue)
         {
+            return FlowHeat_Calc(elem, (_, _, _) => flowValue);
+        }
+
+        public Vector<double> FlowHeat_Calc(IElement elem, Func<double, double, double, double> flowValue)
+        {
             var sumFlowBoundary = Vector<double>.Build.Dense(elem.NumberOfPoints);
             var x_Coords = elem.GetVertexes().Select(x => x.Position._x);
             var y_Coords = elem.GetVertexes().Select(x => x.Position._y);
@@ -72,7 +77,9 @@ namespace TaskSolverCore.BoundaryConditions
 
                 var sqr = 2 * 3.14f * r * length;
 
-                vN.Multiply(flowValue * sqr, vN);
+                var px = CalcInterpolatedValue(x_Coords, n);
+                var py = CalcInterpolatedValue(y_Coords, n);
+                vN.Multiply(flowValue(px, py, 0.0) * sqr, vN);
                 sumFlowBoundary = sumFlowBoundary.Add(vN);
 
             }

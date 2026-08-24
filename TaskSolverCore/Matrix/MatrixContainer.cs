@@ -7,7 +7,7 @@ namespace TaskSolverCore.Matrix
 {
     public enum MatrixType
     {
-        stifness, heatTransfer, heatCapacity, heatTransferCapacity
+        stifness, heatTransfer, heatCapacity, heatConvection, heatTransferCapacity
     }
 
     /// <summary>Контейнер CSR-матриц расчётной задачи.</summary>

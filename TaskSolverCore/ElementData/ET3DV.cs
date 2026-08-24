@@ -92,6 +92,26 @@ namespace TaskSolverCore.ElementData
             return sumHeatTransf;
         }
 
+        public override Matrix<double> Convection_Calc()
+        {
+            var result = Matrix<double>.Build.Dense(Element.NumberOfPoints, Element.NumberOfPoints);
+            foreach (var intPoint in Element.GetIntegralPoints())
+            {
+                var derivatives = Matrix<double>.Build.DenseOfArray(Element.GetDerivativesFormFunctions(intPoint));
+                var jacobi = intPoint.Jacobi;
+                derivatives = jacobi.Inverse().Multiply(derivatives);
+                var n = Vector<double>.Build.DenseOfArray(Element.GetFormFunctions(intPoint));
+                var directionalGradient = Vector<double>.Build.Dense(Element.NumberOfPoints);
+                for (var node = 0; node < Element.NumberOfPoints; node++)
+                    for (var direction = 0; direction < 3; direction++)
+                        directionalGradient[node] += ConvectionVelocity[direction] * derivatives[direction, node];
+
+                var volume = Math.Abs(jacobi.Determinant()) * intPoint.Weigt;
+                result += n.OuterProduct(directionalGradient) * (Density * HeatCapacity * volume);
+            }
+            return result;
+        }
+
         public override Vector<double> VolumeHeat_Calc(double heatValue)
         {
             var sumVolumeHeat = Vector<double>.Build.Dense(Element.NumberOfPoints);

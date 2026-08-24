@@ -1,10 +1,4 @@
-﻿using Model.MeshObjects;
 using CAESolvers;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TaskSolverCore.ElementData;
 using TaskSolverCore.Matrix;
 
@@ -12,77 +6,73 @@ namespace TaskSolverCore
 {
     public abstract partial class HeatTask
     {
-        protected override void FillMatrices(
-            TaskSystemContext<ElementTermal> context)
+        protected override void FillMatrices(TaskSystemContext<ElementTermal> context)
         {
-            var matr = context.Matrices;
-            var elemData = context.Elements;
-            var geo = context.Nodes;
-            var timeStep = context.TimeStep;
-            SymmetricCSRMatrix mK =
-                matr.Get<SymmetricCSRMatrix>(MatrixType.heatTransfer);
-            SymmetricCSRMatrix mC =
-                matr.Get<SymmetricCSRMatrix>(MatrixType.heatCapacity);
-            SymmetricCSRMatrix mKC =
-                matr.Get<SymmetricCSRMatrix>(MatrixType.heatTransferCapacity);
+            var matrices = context.Matrices;
+            var mK = matrices.Get<CSRMatrix>(MatrixType.heatTransfer);
+            var mC = matrices.Get<CSRMatrix>(MatrixType.heatCapacity);
+            var mKC = matrices.Get<CSRMatrix>(MatrixType.heatTransferCapacity);
 
+            AssembleHeatMatrices(context, mK, mC);
 
-            //var length = elemData.Count();
-            foreach (var item in elemData)
+            if (Convection)
             {
-                //var eObj = elemData[i].Element;
-                //var nbrNodes = geo.MatrixIndex[i].Count;
-
-                var mHeatTransfer = item.HeatTransfer_Calc();
-                var mCapacity = item.Capacity_Calc();
-
-                //var cStr = mCapacity.ToString();
-                //var hStr = mHeatTransfer.ToString();
-
-                // Важно!!! необходима синхронизация между индексами узлов
-                // локальной и глобальной матриц
-
-                var gInds = geo.GetGlobalInds(item.Element, Dof);
-
-                for (int k = 0; k < gInds.Count; k++)
-                {
-                    var row = gInds[k];
-
-                    // можно перебирать не сначала, а со сдвигом по k так как
-                    // храняться элементы выше диагонали и матрицы всегда симметричны
-                    for (int m = 0; m < gInds.Count; m++)
-                    {
-                        var col = gInds[m];
-                        if (col >= row)
-                        {
-                            mK[row, col] += mHeatTransfer[k, m];
-                            mC[row, col] += mCapacity[k, m];
-                        }
-
-                        //var scol = 0;
-                        //if (mK.Kind == MatrixKind.profile)
-                        //    scol = mK.Indexes[row].BinarySearch(col);
-                        //else
-                        //    scol = col - row;
-                        //mK[row, scol] = mK[row, scol] + mHeatTransfer[k, m];
-                        //mC[row, scol] = mC[row, scol] + mCapacity[k, m];
-                        //}
-                    }
-                }
+                var mA = matrices.Get<CSRMatrix>(MatrixType.heatConvection);
+                AssembleConvectionMatrix(context, mA);
+                CombineMatrices(mK, mC, mA, mKC, context.TimeStep);
+                return;
             }
 
-            ReadOnlySpan<int> rowPointers = mK.RowPointers;
-            ReadOnlySpan<int> columnIndices = mK.ColumnIndices;
+            CombineMatrices(mK, mC, mKC, context.TimeStep);
+        }
 
-            for (int row = 0; row < mK.Size; row++)
+        private void AssembleHeatMatrices(TaskSystemContext<ElementTermal> context, CSRMatrix mK, CSRMatrix mC)
+        {
+            foreach (var element in context.Elements)
             {
-                for (int position = rowPointers[row];
-                    position < rowPointers[row + 1];
-                    position++)
+                var heatTransfer = element.HeatTransfer_Calc();
+                var capacity = element.Capacity_Calc();
+                var globalIndices = context.Nodes.GetGlobalInds(element.Element, Dof);
+
+                for (var row = 0; row < globalIndices.Count; row++)
+                for (var column = 0; column < globalIndices.Count; column++)
                 {
-                    int col = columnIndices[position];
-                    mKC[row, col] = mK[row, col] + mC[row, col] / timeStep;
+                    mK[globalIndices[row], globalIndices[column]] += heatTransfer[row, column];
+                    mC[globalIndices[row], globalIndices[column]] += capacity[row, column];
                 }
+            }
+        }
+
+        private void AssembleConvectionMatrix(TaskSystemContext<ElementTermal> context, CSRMatrix mA)
+        {
+            foreach (var element in context.Elements)
+            {
+                var globalIndices = context.Nodes.GetGlobalInds(element.Element, Dof);
+                ConvectionAssembler.Assemble(element, mA, globalIndices);
+            }
+        }
+
+        private static void CombineMatrices(CSRMatrix mK, CSRMatrix mC, CSRMatrix mKC, double timeStep)
+        {
+            var rowPointers = mK.RowPointers;
+            var columnIndices = mK.ColumnIndices;
+            for (var row = 0; row < mK.RowCount; row++)
+            for (var position = rowPointers[row]; position < rowPointers[row + 1]; position++)
+            {
+                var column = columnIndices[position];
+                mKC[row, column] = mK[row, column] + mC[row, column] / timeStep;
+            }
+        }
+
+        private static void CombineMatrices(CSRMatrix mK, CSRMatrix mC, CSRMatrix mA, CSRMatrix mKC, double timeStep)
+        {
+            var rowPointers = mK.RowPointers;
+            var columnIndices = mK.ColumnIndices;
+            for (var row = 0; row < mK.RowCount; row++)
+            for (var position = rowPointers[row]; position < rowPointers[row + 1]; position++)
+            {
+                var column = columnIndices[position];
+                mKC[row, column] = mK[row, column] + mA[row, column] + mC[row, column] / timeStep;
             }
         }
     }

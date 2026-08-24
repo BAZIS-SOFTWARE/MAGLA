@@ -9,8 +9,8 @@ namespace TaskSolverCore
 {
     public class HeatTask3D : HeatTask
     {
-        public HeatTask3D(int index, string folder,ITaskData taskData, TermalParameters parameters) : 
-            base(index, folder, taskData, parameters)
+        public HeatTask3D(int index, string folder,ITaskData taskData, TermalParameters parameters, HeatTransportOptions? transportOptions = null, bool? convection = null) :
+            base(index, folder, taskData, parameters, transportOptions, convection)
         {
             BoundaryCalculator = new HeatBoundary3D();
         }

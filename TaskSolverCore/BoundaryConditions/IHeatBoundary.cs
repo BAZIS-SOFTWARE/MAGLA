@@ -21,6 +21,7 @@ namespace TaskSolverCore.BoundaryConditions
         /// <param name="flowValue"></param>
         /// <returns></returns>
         Vector<double> FlowHeat_Calc(IElement element, float flowValue);
+        Vector<double> FlowHeat_Calc(IElement element, Func<double, double, double, double> flowValue);
         /// <summary>
         /// VolumeHeat. Определение объемного тепловыделения в узлах. Тепло генерируется в центре элемента
         /// </summary>

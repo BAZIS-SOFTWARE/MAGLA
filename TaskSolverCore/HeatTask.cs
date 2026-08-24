@@ -25,7 +25,7 @@ using static IronPython.Modules._ast;
 
 namespace TaskSolverCore
 {
-    public abstract partial class HeatTask : GeneralTask<ElementTermal, SymmetricCSRMatrix>
+    public abstract partial class HeatTask : GeneralTask<ElementTermal, CSRMatrix>
     {
         public string ChemicalFile { get; set; } = "";
         //public PhaseCalcJMAKModel PhaseCalcJMAKModel { get; }
@@ -39,14 +39,21 @@ namespace TaskSolverCore
         internal List<HeatData> HeatData;
 
         public TermalConvergence TermalConvergence { get; }
-        public HeatTask(int index, string folder,ITaskData taskData, TermalParameters parameters) : 
-            base(index, folder, taskData, parameters, SolverBuilder.CreateSymmetric(parameters.SolverSettings))
+        public HeatTransportOptions TransportOptions { get; }
+        public bool Convection { get; }
+        internal IHeatConvectionAssembler ConvectionAssembler { get; }
+        public HeatTask(int index, string folder,ITaskData taskData, TermalParameters parameters, HeatTransportOptions? transportOptions = null, bool? convection = null) :
+            base(index, folder, taskData, parameters, SolverBuilder.CreateHeatTransport(parameters.SolverSettings))
         {
             TaskKind = taskKind.термическая;
 
             Parameters = parameters;
 
             TermalConvergence = parameters.TermalConvergence;
+            TransportOptions = transportOptions ?? new HeatTransportOptions();
+            Convection = convection ?? ReadConvection(parameters);
+            TransportOptions.Validate(taskData.TaskType == TaskType.Volume || taskData.TaskType == TaskType.Volume_mixed ? 3 : 2, Convection);
+            ConvectionAssembler = new GalerkinHeatConvectionAssembler();
 
             MediaData = taskData.Find<MediaData>().ToList();
             HeatData = taskData.Find<HeatData>().ToList();
@@ -55,6 +62,12 @@ namespace TaskSolverCore
             MetallurgicalModel = new MetallurgicalModel();
 
             Dof = 1;
+        }
+
+        private static bool ReadConvection(TermalParameters parameters)
+        {
+            var property = parameters.GetType().GetProperty("Convection");
+            return property?.PropertyType == typeof(bool) && property.GetValue(parameters) is true;
         }
 /// <inheritdoc/>
 
@@ -111,7 +124,7 @@ namespace TaskSolverCore
                     else
                     {
                         if (obj.ObjType == ObjType.Элемент2D)
-                            eItem = new ET2DAV((IElement2D)obj);
+                            eItem = TaskType == TaskType.Plain ? new ET2DPV((IElement2D)obj) : new ET2DAV((IElement2D)obj);
                         else
                         {
                             var plateData = dataItem as PlateMatData;
@@ -203,8 +216,7 @@ namespace TaskSolverCore
             var time = context.Time;
             var y = vec.GetVectorArray(VectorType.force);
             //var x = vec.GetVectorList();
-            SymmetricCSRMatrix mKC =
-                matr.Get<SymmetricCSRMatrix>(MatrixType.heatTransferCapacity);
+            var mKC = matr.Get<CSRMatrix>(MatrixType.heatTransferCapacity);
             //var transInds = mKC.TransposeIndexes();
             var last_taskResu = taskResults.Last().Data;
 
@@ -267,8 +279,7 @@ namespace TaskSolverCore
             //var x = vec.GetVectorList();
             //var nodesNumbers = geo.GetNodesNumbs;
 
-            SymmetricCSRMatrix mKC =
-                matr.Get<SymmetricCSRMatrix>(MatrixType.heatTransferCapacity);
+            var mKC = matr.Get<CSRMatrix>(MatrixType.heatTransferCapacity);
 
             var mHeatExchange = BoundaryCalculator.ExchangeBoundary_Calc(eObj, hExch);
             var q = BoundaryCalculator.FlowBoundary_Calc(eObj, mediaTemp, hExch);
@@ -288,8 +299,7 @@ namespace TaskSolverCore
                 for (int m = 0; m < indexes.Count; m++)
                 {
                     var col = indexes[m];
-                    if (col >= row)
-                        mKC.AccumulateAt(row, col, mHeatExchange[k, m]);
+                    mKC.AccumulateAt(row, col, mHeatExchange[k, m]);
                     //if (col >= row)
                     //{
                     //    var scol = 0;
@@ -388,6 +398,36 @@ namespace TaskSolverCore
                 }
                                
             }
+
+            ApplyFrictionHeat(context);
+        }
+
+        private void ApplyFrictionHeat(TaskSystemContext<ElementTermal> context)
+        {
+            var options = TransportOptions.FrictionHeat;
+            if (!options.Enabled || context.Time < options.StartTime || context.Time > options.StopTime)
+                return;
+
+            var groups = MediaData.Select(data => data.Group)
+                .Where(group => options.SurfaceGroups.Contains(group.Name, StringComparer.OrdinalIgnoreCase))
+                .GroupBy(group => group.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToList();
+            var missing = options.SurfaceGroups.Except(groups.Select(group => group.Name), StringComparer.OrdinalIgnoreCase).ToArray();
+            if (missing.Length > 0)
+                throw new InvalidOperationException($"Не найдены контактные группы тепловыделения: {string.Join(", ", missing)}.");
+
+            var force = context.Vectors.GetVectorArray(VectorType.force);
+            foreach (var group in groups)
+            foreach (var obj in group)
+            {
+                var element = (IElement)obj;
+                var velocity = Convection ? TransportOptions.Convection.ResolveVelocity(element.Number, element.GetVertexes().Select(node => node.Number)) : [0.0, 0.0, 0.0];
+                var local = BoundaryCalculator.FlowHeat_Calc(element, (x, y, z) => options.CalculateFlux(x, y, z, velocity));
+                var indices = context.Nodes.GetGlobalInds(element, Dof);
+                for (var index = 0; index < indices.Count; index++)
+                    force[indices[index]] += local[index];
+            }
         }
       
 
@@ -398,8 +438,7 @@ namespace TaskSolverCore
             var matr = context.Matrices;
             var geo = context.Nodes;
             var timeStep = context.TimeStep;
-            SymmetricCSRMatrix mC =
-                matr.Get<SymmetricCSRMatrix>(MatrixType.heatCapacity);
+            var mC = matr.Get<CSRMatrix>(MatrixType.heatCapacity);
             //var mCm = matr[MatrixType.heatCapacity];
             var x = vec.GetVectorArray(VectorType.result);
             var y = vec.GetVectorArray(VectorType.force);
@@ -441,6 +480,7 @@ namespace TaskSolverCore
 
                     if (time >= data.StartTime & time <= data.StopTime)
                     {
+                        elemData.ConvectionVelocity = Convection ? TransportOptions.Convection.ResolveVelocity(elemData.Element.Number, elemData.Element.GetVertexes().Select(node => node.Number)) : [0.0, 0.0, 0.0];
                         var phaseData = elemData.PhaseData;
 
                         if (Convert.ToInt32(data.Material["Общие сведения"]["Модель материала"].DataTable.Rows[0]["Модель материала"]) == 2)
@@ -552,49 +592,47 @@ namespace TaskSolverCore
 
             matrixData.AddMatrix(
                 MatrixType.heatTransfer,
-                BuildSymmetricMatrix(nodes, elements, Dof));
+                BuildGeneralMatrix(nodes, elements, Dof));
             matrixData.AddMatrix(
                 MatrixType.heatCapacity,
-                BuildSymmetricMatrix(nodes, elements, Dof));
+                BuildGeneralMatrix(nodes, elements, Dof));
+            if (Convection)
+                matrixData.AddMatrix(MatrixType.heatConvection, BuildGeneralMatrix(nodes, elements, Dof));
             matrixData.AddMatrix(
                 MatrixType.heatTransferCapacity,
-                BuildSymmetricMatrix(nodes, elements, Dof));
+                BuildGeneralMatrix(nodes, elements, Dof));
 
             return matrixData;
         }
 
-        protected override LinearSystem<SymmetricCSRMatrix> CreateLinearSystem(TaskSystemContext<ElementTermal> context)
+        protected override LinearSystem<CSRMatrix> CreateLinearSystem(TaskSystemContext<ElementTermal> context)
         {
-            var matrix = context.Matrices.Get<SymmetricCSRMatrix>(
+            var matrix = context.Matrices.Get<CSRMatrix>(
                 MatrixType.heatTransferCapacity);
             var rightHandSide = context.Vectors
                 .GetVectorArray(VectorType.force)
                 .Vector
                 .ToArray();
 
-            return new LinearSystem<SymmetricCSRMatrix>(matrix, rightHandSide);
+            return new LinearSystem<CSRMatrix>(matrix, rightHandSide);
         }
 
-        private static SymmetricCSRMatrix BuildSymmetricMatrix(
+        private static CSRMatrix BuildGeneralMatrix(
             NodeDofMap nodes,
             IEnumerable<IElement> elements,
             int degreesOfFreedom)
         {
-            var builder = new SymmetricCSRMatrixBuilder(
-                nodes.Count * degreesOfFreedom);
+            var size = nodes.Count * degreesOfFreedom;
+            var builder = new CSRMatrixBuilder(size, size);
 
             foreach (var element in elements)
             {
                 var indices = nodes.GetGlobalInds(
                     element, degreesOfFreedom);
 
-                for (var localRow = 0;
-                    localRow < indices.Count;
-                    localRow++)
+                for (var localRow = 0; localRow < indices.Count; localRow++)
                 {
-                    for (var localColumn = localRow;
-                        localColumn < indices.Count;
-                        localColumn++)
+                    for (var localColumn = 0; localColumn < indices.Count; localColumn++)
                     {
                         builder.AddToElement(
                             indices[localRow],

@@ -9,9 +9,10 @@ namespace TaskSolverCore
 {
     public class HeatTask2DPlane : HeatTask
     {
-        public HeatTask2DPlane(int index, string folder,ITaskData taskData, TermalParameters parameters) 
-            : base(index, folder, taskData, parameters)
+        public HeatTask2DPlane(int index, string folder,ITaskData taskData, TermalParameters parameters, HeatTransportOptions? transportOptions = null, bool? convection = null)
+            : base(index, folder, taskData, parameters, transportOptions, convection)
         {
+            BoundaryCalculator = new BoundaryConditions.HeatBoundary2DPlane();
         }
 
 

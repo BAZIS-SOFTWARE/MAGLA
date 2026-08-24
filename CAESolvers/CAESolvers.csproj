@@ -8,14 +8,10 @@
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
     <Platforms>AnyCPU;x64</Platforms>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <SignAssembly>True</SignAssembly>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Folder Include="DOCS\" />
-  </ItemGroup>
 
 </Project>

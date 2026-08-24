@@ -16,6 +16,7 @@ namespace TaskSolverCore.ElementData
         public double HeatCapacity { get; set; }
         public double Density { get; set; }
         public float HeatVelocity { get; set; }
+        public double[] ConvectionVelocity { get; set; } = [0.0, 0.0, 0.0];
         protected ElementTermal(IElement element) : base(element)
         {
         }
@@ -35,6 +36,9 @@ namespace TaskSolverCore.ElementData
         /// </summary>
         /// <returns></returns>
         public abstract Matrix<double> Capacity_Calc();
+
+        /// <summary>Матрица конвективного переноса rho*C*integral(N^T*v*grad(N)) dV.</summary>
+        public virtual Matrix<double> Convection_Calc() => Matrix<double>.Build.Dense(Element.NumberOfPoints, Element.NumberOfPoints);
 
 
         /// <summary>

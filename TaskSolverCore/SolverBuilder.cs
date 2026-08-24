@@ -32,6 +32,14 @@ namespace TaskSolverCore
             return new BiCgStabSolver { RelativeTolerance = tolerance, MaxIterations = settings.MaxIter };
         }
 
+        /// <summary>Создаёт решатель несимметричной системы теплопереноса.</summary>
+        public static ILinearSolver<CSRMatrix> CreateHeatTransport(SolverSettings settings)
+        {
+            ArgumentNullException.ThrowIfNull(settings);
+            var tolerance = settings.Precision > 0 ? settings.Precision : 1e-8;
+            return new BiCgStabSolver { RelativeTolerance = tolerance, MaxIterations = settings.MaxIter };
+        }
+
         /// <summary>
         /// Создаёт решатель произвольного типа матрицы через фабрику физического модуля.
         /// </summary>

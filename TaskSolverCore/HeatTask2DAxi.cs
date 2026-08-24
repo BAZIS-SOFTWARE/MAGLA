@@ -10,8 +10,8 @@ namespace TaskSolverCore
 {
     public class HeatTask2DAxi : HeatTask
     {
-        public HeatTask2DAxi(int index, string folder, ITaskData taskData, TermalParameters parameters) : 
-            base(index, folder, taskData, parameters)
+        public HeatTask2DAxi(int index, string folder, ITaskData taskData, TermalParameters parameters, HeatTransportOptions? transportOptions = null, bool? convection = null) :
+            base(index, folder, taskData, parameters, transportOptions, convection)
         {
             BoundaryCalculator = new HeatBoundary2DAxi();
         }
