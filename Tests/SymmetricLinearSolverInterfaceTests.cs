@@ -61,7 +61,7 @@ namespace Tests
                 MaxIterations = 1,
                 UsePreconditioner = false
             };
-            ILinearSolver solver = conjugateGradient;
+            IIterativeLinearSolver solver = conjugateGradient;
 
             var solution = solver.Solve(system);
             var result = conjugateGradient.LastResult!;

@@ -38,7 +38,7 @@ namespace CAESolvers
     /// бросает исключение, а не возвращает бессмысленный результат.
     /// </summary>
     public class ConjugateGradientGaussPreSolver
-        : IterativeSolver<SymmetricCSRMatrix, IterativeSolverResult>
+        : IterativeLinearSolver<SymmetricCSRMatrix>
     {
         /// <summary>
         /// Включает диагональное (Якоби) предобуславливание. По умолчанию

@@ -42,7 +42,7 @@ namespace CAESolvers
     /// <see cref="UtduNumericFactorization"/> неизменяемы после построения, и
     /// решать с одним множителем разные правые части можно параллельно.
     /// </summary>
-    public class SymmetricUtduSolver : LinearSolver<SymmetricCSRMatrix>
+    public class SymmetricUtduSolver : DirectLinearSolver<SymmetricCSRMatrix>
     {
         /// <summary>
         /// Создаёт решатель с настройками по умолчанию (AMD-переупорядочивание,

@@ -4,7 +4,7 @@ namespace CAESolvers
     /// Стабилизированный метод бисопряжённых градиентов для общих квадратных
     /// CSR-матриц с необязательным ILU(0)-предобуславливанием.
     /// </summary>
-    public sealed class BiCgStabSolver : IterativeSolver<CSRMatrix, IterativeSolverResult>
+    public sealed class BiCgStabSolver : IterativeLinearSolver<CSRMatrix>
     {
         /// <summary>Включает построение и применение ILU(0). По умолчанию включено.</summary>
         public bool UsePreconditioner { get; set; } = true;
