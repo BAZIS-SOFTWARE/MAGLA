@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "TaskSolverCore": {
-      "commandName": "Project",
-      "hotReloadEnabled": true
-    }
-  }
-}
