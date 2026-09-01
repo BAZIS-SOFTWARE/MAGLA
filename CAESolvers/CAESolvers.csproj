@@ -14,8 +14,4 @@
     <SignAssembly>True</SignAssembly>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Folder Include="DOCS\" />
-  </ItemGroup>
-
 </Project>

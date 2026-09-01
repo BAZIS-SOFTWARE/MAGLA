@@ -1,0 +1,119 @@
+classDiagram
+    direction LR
+
+    namespace CAESolvers {
+        class ICsrMatrix {
+            <<interface>>
+            +int RowCount
+            +int ColumnCount
+            +int NonZeroCount
+            +Multiply(double[] vector) double[]
+            +LineCross(double[] rightHandSide, double prescribedValue, int index)
+            +ClearValues()
+        }
+
+        class CSRMatrix
+        class SymmetricCSRMatrix
+
+        class LinearSystem {
+            +ICsrMatrix Matrix
+            +double[] RightHandSide
+        }
+
+        class ILinearSolver {
+            <<interface>>
+            +Solve(LinearSystem system) double[]
+        }
+
+        class LinearSolver["LinearSolver<TMatrix>"] {
+            <<abstract>>
+            +Solve(LinearSystem system) double[]
+            #SolveCore(TMatrix matrix, double[] rightHandSide) double[]
+        }
+
+        class IterativeSolver["IterativeSolver<TMatrix, TResult>"] {
+            <<abstract>>
+            +double RelativeTolerance
+            +int MaxIterations
+            +TResult LastResult
+            #SolveCore(TMatrix matrix, double[] rightHandSide) double[]
+        }
+
+        class IterativeSolverResult {
+            +double[] Solution
+            +int Iterations
+            +bool Converged
+            +double ResidualNorm
+        }
+
+        class ConjugateGradientGaussPreSolver {
+            +bool UsePreconditioner
+            +SolveWithInitialGuess(LinearSystem system, double[] initialGuess) double[]
+            +SolveWithInitialGuess(LinearSystem system, double[] initialGuess, JacobiPreconditioner preconditioner) double[]
+        }
+
+        class JacobiPreconditioner {
+            +JacobiPreconditioner(SymmetricCSRMatrix matrix, double pivotTolerance)
+            +SymmetricCSRMatrix Matrix
+            +int Size
+            +double PivotTolerance
+            +Apply(double[] source, double[] result)
+        }
+
+        class BiCgStabSolver {
+            +bool UsePreconditioner
+            +double BreakdownTolerance
+            +SolveWithInitialGuess(LinearSystem system, double[] initialGuess) double[]
+            +SolveWithInitialGuess(LinearSystem system, double[] initialGuess, Ilu0Preconditioner preconditioner) double[]
+        }
+
+        class Ilu0Preconditioner {
+            +Ilu0Preconditioner(CSRMatrix matrix, double pivotTolerance)
+            +CSRMatrix Matrix
+            +int Size
+            +double PivotTolerance
+            +Apply(double[] rightHandSide, double[] result)
+        }
+
+        class SymmetricUtduSolver {
+            +UtduSolverOptions Options
+            +Analyze(SymmetricCSRMatrix matrix) UtduSymbolicFactorization
+            +Factorize(SymmetricCSRMatrix matrix, UtduSymbolicFactorization symbolic) UtduNumericFactorization
+            #SolveCore(SymmetricCSRMatrix matrix, double[] rightHandSide) double[]
+        }
+
+        class UtduSolverOptions
+
+        class UtduSymbolicFactorization {
+            +Analyze(SymmetricCSRMatrix matrix, UtduSolverOptions options) UtduSymbolicFactorization
+        }
+
+        class UtduNumericFactorization {
+            +Solve(double[] rightHandSide) double[]
+        }
+    }
+
+    ICsrMatrix <|.. CSRMatrix
+    ICsrMatrix <|.. SymmetricCSRMatrix
+
+    LinearSystem o-- ICsrMatrix : Matrix
+
+    ILinearSolver <|.. LinearSolver
+    LinearSolver <|-- IterativeSolver
+    LinearSolver <|-- SymmetricUtduSolver
+    IterativeSolver <|-- ConjugateGradientGaussPreSolver
+    IterativeSolver <|-- BiCgStabSolver
+
+    IterativeSolver --> IterativeSolverResult : LastResult
+    ConjugateGradientGaussPreSolver ..> JacobiPreconditioner : creates or accepts
+    ConjugateGradientGaussPreSolver ..> SymmetricCSRMatrix
+    JacobiPreconditioner --> SymmetricCSRMatrix : reads diagonal
+    BiCgStabSolver ..> Ilu0Preconditioner : creates or accepts
+    BiCgStabSolver ..> CSRMatrix
+    Ilu0Preconditioner --> CSRMatrix : factorizes
+
+    SymmetricUtduSolver o-- UtduSolverOptions
+    SymmetricUtduSolver --> UtduSymbolicFactorization : Analyze
+    SymmetricUtduSolver --> UtduNumericFactorization : Factorize
+    UtduNumericFactorization --> UtduSymbolicFactorization : uses
+    SymmetricUtduSolver ..> SymmetricCSRMatrix
