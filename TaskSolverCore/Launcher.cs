@@ -1,4 +1,4 @@
-﻿using ClientLogic;
+using ClientLogic;
 using System.Net;
 using System.Reflection;
 using Project.Interfaces.Tasks;
@@ -78,12 +78,12 @@ namespace TaskSolverCore
             try
             {
                 if (project.TaskData is null)
-                    throw new Exception("начало расчета не может быть раньше загрузки файлов проекта");
+                    throw new Exception("Calculation start cannot precede loading the project files.");
 
                 ServerConnection.RequestServer(activeModule + " Взять");
                 if (CheckServerAnswer(ServerConnection.Answer))
                     StartLicensing(activeModule);     
-                else throw new LicException($@"Ошибка лицензирования модуля {activeModule}!");
+                else throw new LicException($@"Licensing error for module {activeModule}!");
 
                 var startTime = DateTime.Now;
 
@@ -187,7 +187,7 @@ namespace TaskSolverCore
 
                         break;
                     default:
-                        throw new Exception($"тип данных {fileType} не ожидаем в работе программы");
+                        throw new Exception($"Data type {fileType} is not supported by the application.");
                 }
 
             }

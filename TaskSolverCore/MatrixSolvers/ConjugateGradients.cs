@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -51,7 +51,7 @@ namespace TaskSolverCore.MatrixSolvers
                 var rlrl = MultiplyVectorToVector(rl, rl);
                 var a = rlrl / mzzl;
                 if (double.IsNaN(a) | double.IsInfinity(a))
-                    throw new Exception("коэффициент a NaN или бесконечность");
+                    throw new Exception("Coefficient a is NaN or infinite.");
 
                 var za = MultiplyVectorToValue(zl, a);
                 var xi = SumVectorToVector(za, x[iterCounter]);
@@ -79,7 +79,7 @@ namespace TaskSolverCore.MatrixSolvers
                 var drdr = MultiplyVectorToVector(dr, dr);
                 var b = drdr / rlrl;
                 if (double.IsNaN(b) | double.IsInfinity(b))
-                    throw new Exception("коэффициент b NaN или бесконечность");
+                    throw new Exception("Coefficient b is NaN or infinite.");
 
                 var zb = MultiplyVectorToValue(zl, b);
                 var zi = SumVectorToVector(dr, zb);
@@ -98,7 +98,7 @@ namespace TaskSolverCore.MatrixSolvers
                 var resu = Math.Abs(x2[i] - x1[i]);
 
                 if (double.IsNaN(resu) | double.IsInfinity(resu))
-                    throw new Exception("число NaN или бесконечность");
+                    throw new Exception("The value is NaN or infinite.");
                 dx[i] = resu;
             }
 

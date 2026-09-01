@@ -26,14 +26,14 @@ namespace TaskSolverCore.Matrix
             where TMatrix : class, ICsrMatrix
         {
             if (!matrices.TryGetValue(type, out ICsrMatrix? matrix))
-                throw new KeyNotFoundException($"Матрица {type} отсутствует в контейнере.");
+                throw new KeyNotFoundException($"Matrix {type} is missing from the container.");
 
             if (matrix is TMatrix typedMatrix)
                 return typedMatrix;
 
             throw new InvalidOperationException(
-                $"Матрица {type} имеет тип {matrix.GetType().Name}, " +
-                $"ожидался {typeof(TMatrix).Name}.");
+                $"Matrix {type} has type {matrix.GetType().Name}; " +
+                $"expected {typeof(TMatrix).Name}.");
         }
 
         public void ClearMatrixes()

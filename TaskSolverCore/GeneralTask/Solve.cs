@@ -115,7 +115,7 @@ namespace TaskSolverCore
         //    }
         //}
 
-        private Tuple<double[], double> SolveSystem(LinearSystem<SymmetricCSRMatrix> system)
+        private Tuple<double[], double> SolveSystem(LinearSystem system)
         {
             WriteToLog("Численное решение...");
 
@@ -125,24 +125,14 @@ namespace TaskSolverCore
 
             watch.Start();
 
-            double[] solution;
-            double accuracy;
+            var solution = matrixSolver.Solve(system);
+            var accuracy = RelativeResidual(matrix, rightHandSide, solution);
 
-            if (matrixSolver is ConjugateGradientGaussPreSolver conjugateGradient)
+            if (matrixSolver is ConjugateGradientGaussPreSolver conjugateGradient && conjugateGradient.LastResult != null)
             {
-                solution = conjugateGradient.Solve(system);
-                var result = conjugateGradient.LastResult!;
-
-                accuracy = RelativeResidual(matrix, rightHandSide, solution);
-
                 WriteToLog(
-                    $" > всего итераций {result.Iterations}, " +
+                    $" > всего итераций {conjugateGradient.LastResult.Iterations}, " +
                     $"относительная невязка {accuracy}");
-            }
-            else
-            {
-                solution = matrixSolver.Solve(system);
-                accuracy = RelativeResidual(matrix, rightHandSide, solution);
             }
 
             watch.Stop();
@@ -153,7 +143,7 @@ namespace TaskSolverCore
         }
 
         private static double RelativeResidual(
-            SymmetricCSRMatrix matrix, double[] rightHandSide, double[] solution)
+            ICsrMatrix matrix, double[] rightHandSide, double[] solution)
         {
             double[] product = matrix.Multiply(solution);
             double residualSquared = 0.0;

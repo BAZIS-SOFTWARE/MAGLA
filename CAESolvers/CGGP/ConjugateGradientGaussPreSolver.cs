@@ -39,8 +39,7 @@ namespace CAESolvers
     /// бросает исключение, а не возвращает бессмысленный результат.
     /// </summary>
     public class ConjugateGradientGaussPreSolver
-        : IterativeSolver<SymmetricCSRMatrix, IterativeSolverResult>,
-          ISymmetricLinearSolver
+        : IterativeSolver<SymmetricCSRMatrix, IterativeSolverResult>
     {
         /// <summary>
         /// Включает диагональное (Якоби) предобуславливание. По умолчанию
@@ -50,9 +49,9 @@ namespace CAESolvers
         /// </summary>
         public bool UsePreconditioner { get; set; } = true;
 
-        public override double[] Solve(LinearSystem<SymmetricCSRMatrix> system)
+        protected override double[] SolveCore(SymmetricCSRMatrix matrix, double[] rightHandSide)
         {
-            return Solve(system, null);
+            return SolveWithInitialGuess(matrix, rightHandSide, null);
         }
 
         /// <summary>
@@ -60,14 +59,19 @@ namespace CAESolvers
         /// <see cref="UsePreconditioner"/>). Если задан initialGuess, он
         /// используется как начальное приближение x0 (иначе x0 = 0).
         /// </summary>
-        public double[] Solve(LinearSystem<SymmetricCSRMatrix> system, double[]? initialGuess)
+        public double[] SolveWithInitialGuess(LinearSystem system, double[]? initialGuess)
+        {
+            var matrix = GetMatrix(system);
+            return SolveWithInitialGuess(matrix, system.RightHandSide, initialGuess);
+        }
+
+        private double[] SolveWithInitialGuess(SymmetricCSRMatrix matrix, double[] rightHandSide, double[]? initialGuess)
         {
             LastResult = null;
 
-            ValidateCommonArguments(system);
+            ValidateCommonArguments();
 
-            var matrix = system.Matrix;
-            var b = system.RightHandSide;
+            var b = rightHandSide;
 
             var n = matrix.Size;
 
@@ -75,7 +79,7 @@ namespace CAESolvers
             {
                 if (initialGuess.Length != n)
                     throw new ArgumentException(
-                        $"Размер начального приближения {initialGuess.Length} не соответствует размеру матрицы {n}");
+                        $"The initial guess length {initialGuess.Length} does not match the matrix size {n}.");
             }
 
             var x = initialGuess != null
@@ -117,7 +121,7 @@ namespace CAESolvers
 
                 if (pAp <= 0.0)
                     throw new InvalidOperationException(
-                        "p^T A p <= 0 — матрица не является положительно определённой, метод CG неприменим.");
+                        "p^T A p <= 0. The matrix is not positive definite, so the CG method cannot be applied.");
 
                 var alpha = rzOld / pAp;
 

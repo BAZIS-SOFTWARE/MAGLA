@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Numerics;
@@ -21,7 +21,7 @@ namespace TaskSolverCore.Matrix
                 var scol = col - row;
 
                 if (scol >= Width)
-                    throw new Exception($"Выход за пределы диаметра {row} {col}");
+                    throw new Exception($"Indices are outside the bandwidth: {row}, {col}.");
 
                 return values[row][scol];
             }
@@ -33,7 +33,7 @@ namespace TaskSolverCore.Matrix
                 var scol = col - row;
 
                 if (scol >= Width)
-                    throw new Exception($"Выход за пределы диаметра {row} {col}");
+                    throw new Exception($"Indices are outside the bandwidth: {row}, {col}.");
                 
                 values[row][scol] = value;
             }

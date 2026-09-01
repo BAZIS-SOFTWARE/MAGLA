@@ -1,4 +1,4 @@
-﻿using MaterialDB.MaterialData.MetallurgicalData;
+using MaterialDB.MaterialData.MetallurgicalData;
 using CAESolvers;
 using Model.Interfaces;
 using Model.Interfaces.MeshObjects;
@@ -82,7 +82,7 @@ namespace TaskSolverCore
                 foreach (IElement obj in gr)
                 {
                     if (elementsNumbers.Contains(obj.Number))
-                        throw new Exception($"Элемент с номером {obj.Number} уже используется. Проверьте группы в разделе \"материалы\"");
+                        throw new Exception($"Element {obj.Number} is already in use. Check the groups in the \"Materials\" section.");
 
                     elementsNumbers.Add(obj.Number);
 
@@ -563,7 +563,7 @@ namespace TaskSolverCore
             return matrixData;
         }
 
-        protected override LinearSystem<SymmetricCSRMatrix> CreateLinearSystem(TaskSystemContext<ElementTermal> context)
+        protected override LinearSystem CreateLinearSystem(TaskSystemContext<ElementTermal> context)
         {
             var matrix = context.Matrices.Get<SymmetricCSRMatrix>(
                 MatrixType.heatTransferCapacity);
@@ -572,7 +572,7 @@ namespace TaskSolverCore
                 .Vector
                 .ToArray();
 
-            return new LinearSystem<SymmetricCSRMatrix>(matrix, rightHandSide);
+            return new LinearSystem(matrix, rightHandSide);
         }
 
         private static SymmetricCSRMatrix BuildSymmetricMatrix(

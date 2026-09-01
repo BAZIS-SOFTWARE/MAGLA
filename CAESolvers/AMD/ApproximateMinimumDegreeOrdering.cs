@@ -219,8 +219,8 @@ namespace CAESolvers
 
                 if (permutationCursor != n)
                     throw new InvalidOperationException(
-                        $"AMD: построена неполная перестановка ({permutationCursor} из {n} уравнений). " +
-                        "Это внутренняя ошибка алгоритма переупорядочивания.");
+                        $"AMD: an incomplete permutation was built ({permutationCursor} of {n} equations). " +
+                        "This is an internal ordering algorithm error.");
             }
 
             /// <summary>

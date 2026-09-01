@@ -42,7 +42,7 @@ namespace CAESolvers
     /// <see cref="UtduNumericFactorization"/> неизменяемы после построения, и
     /// решать с одним множителем разные правые части можно параллельно.
     /// </summary>
-    public class SymmetricUtduSolver : ISymmetricLinearSolver
+    public class SymmetricUtduSolver : LinearSolver<SymmetricCSRMatrix>
     {
         /// <summary>
         /// Создаёт решатель с настройками по умолчанию (AMD-переупорядочивание,
@@ -102,11 +102,9 @@ namespace CAESolvers
         /// вызвать <see cref="Analyze"/> и <see cref="Factorize"/> явно и
         /// решать по готовому множителю.
         /// </summary>
-        public double[] Solve(LinearSystem<SymmetricCSRMatrix> system)
+        protected override double[] SolveCore(SymmetricCSRMatrix matrix, double[] rightHandSide)
         {
-            ArgumentNullException.ThrowIfNull(system);
-
-            return Factorize(system.Matrix).Solve(system.RightHandSide);
+            return Factorize(matrix).Solve(rightHandSide);
         }
     }
 }

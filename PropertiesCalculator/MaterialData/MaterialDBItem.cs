@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 
@@ -52,18 +52,18 @@ namespace PropertiesCalculator.MaterialData
         {
 
                 if (!CategoryData.ContainsKey("Механические свойства"))
-                    throw new Exception($"Материал {Name} не содержит категорию \"Механические свойства\"!");
+                    throw new Exception($"Material {Name} does not contain the \"Mechanical properties\" category.");
 
                 if (!this["Механические свойства"].PropertyData.ContainsKey("Предел текучести"))
-                    throw new Exception($"Материал {Name} не содержит свойство \"Предел текучести\"!");
+                    throw new Exception($"Material {Name} does not contain the \"Yield strength\" property.");
                 if (!this["Механические свойства"].PropertyData.ContainsKey("Предел прочности"))
-                    throw new Exception($"Материал {Name} не содержит свойство \"Предел прочности\"!");
+                    throw new Exception($"Material {Name} does not contain the \"Ultimate strength\" property.");
                 if (!this["Механические свойства"].PropertyData.ContainsKey("Коэффициент упрочнения"))
-                    throw new Exception($"Материал {Name} не содержит свойство \"Коэффициент упрочнения\"!");
+                    throw new Exception($"Material {Name} does not contain the \"Hardening coefficient\" property.");
                 if (!this["Механические свойства"].PropertyData.ContainsKey("Модуль Юнга"))
-                    throw new Exception($"Материал {Name} не содержит свойство \"Модуль Юнга\"!");
+                    throw new Exception($"Material {Name} does not contain the \"Young's modulus\" property.");
                 if (!this["Механические свойства"].PropertyData.ContainsKey("ТКЛР"))
-                    throw new Exception($"Материал {Name} не содержит свойство \"ТКЛР\"!");
+                    throw new Exception($"Material {Name} does not contain the \"CTE\" property.");
 
             return true;
         }
@@ -77,14 +77,14 @@ namespace PropertiesCalculator.MaterialData
         {
  
                 if (!CategoryData.ContainsKey("Тепловые свойства"))
-                    throw new Exception($"Материал {Name} не содержит категорию \"Тепловые свойства\"!");
+                    throw new Exception($"Material {Name} does not contain the \"Thermal properties\" category.");
 
                 if (!this["Тепловые свойства"].PropertyData.ContainsKey("Теплопроводность"))
-                    throw new Exception($"Материал {Name} не содержит свойство \"Теплопроводность\"!");
+                    throw new Exception($"Material {Name} does not contain the \"Thermal conductivity\" property.");
                 if (!this["Тепловые свойства"].PropertyData.ContainsKey("Теплоемкость"))
-                    throw new Exception($"Материал {Name} не содержит свойство \"Теплоемкость\"!");
+                    throw new Exception($"Material {Name} does not contain the \"Heat capacity\" property.");
                 if (!this["Тепловые свойства"].PropertyData.ContainsKey("Плотность"))
-                    throw new Exception($"Материал {Name} не содержит свойство \"Плотность\"!");
+                    throw new Exception($"Material {Name} does not contain the \"Density\" property.");
 
             return true;
             
@@ -97,18 +97,18 @@ namespace PropertiesCalculator.MaterialData
         public bool CheckPhaseData()
         {
             if (!CategoryData.ContainsKey("Общие сведения"))
-                throw new Exception($"Материал {Name} не содержит категорию \"Общие сведения\"!");
+                throw new Exception($"Material {Name} does not contain the \"General information\" category.");
 
             if (!this["Общие сведения"].PropertyData.ContainsKey("Структура"))
-                throw new Exception($"Материал {Name} не содержит свойство \"Структура\"!");
+                throw new Exception($"Material {Name} does not contain the \"Structure\" property.");
 
             var phaseTable = this["Общие сведения"]["Структура"].DataTable;
 
             if (phaseTable == null)
-                throw new Exception("Ошибка загрузки данных структуры материала! \nПроверьте раздел \"Структура\"");
+                throw new Exception("Failed to load material structure data.\nCheck the \"Structure\" section.");
 
             if (phaseTable.Rows.Count == 0)
-                throw new Exception("Ошибка загрузки данных структуры материала! \nПроверьте колличество фаз!");
+                throw new Exception("Failed to load material structure data.\nCheck the number of phases.");
             return true;
         }
         /// <summary>

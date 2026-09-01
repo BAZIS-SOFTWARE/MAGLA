@@ -87,8 +87,8 @@ namespace CAESolvers
             int index = FindIndex(row, col);
             if (index < 0)
                 throw new InvalidOperationException(
-                    $"Позиция ({row}, {col}) отсутствует в структуре разреженности. " +
-                    "Включите эту позицию в сборку через SparseMatrixCSRBuilder заранее.");
+                    $"Position ({row}, {col}) is absent from the sparse structure. " +
+                    "Add this position to SparseMatrixCSRBuilder before assembly.");
 
             values[index] += value;
         }
@@ -113,18 +113,18 @@ namespace CAESolvers
                 throw new ArgumentNullException(nameof(rightHandSide));
             if (rightHandSide.Length != rows)
                 throw new ArgumentException(
-                    $"Размер правой части {rightHandSide.Length} не соответствует числу строк матрицы {rows}",
+                    $"The right-hand side length {rightHandSide.Length} does not match the matrix row count {rows}.",
                     nameof(rightHandSide));
             if (rows != cols)
                 throw new InvalidOperationException(
-                    "Граничное условие можно наложить только на квадратную матрицу.");
+                    "A boundary condition can be applied only to a square matrix.");
             if (index < 0 || index >= rows)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
             int diagonalIndex = diagonalIndices[index];
             if (diagonalIndex < 0)
                 throw new InvalidOperationException(
-                    $"Диагональная позиция ({index}, {index}) отсутствует в структуре разреженности.");
+                    $"Diagonal position ({index}, {index}) is absent from the sparse structure.");
 
             for (int row = 0; row < rows; row++)
             {
@@ -172,7 +172,7 @@ namespace CAESolvers
                 int index = FindIndex(row, col);
                 if (index < 0)
                     throw new InvalidOperationException(
-                        $"Позиция ({row}, {col}) отсутствует в структуре разреженности.");
+                        $"Position ({row}, {col}) is absent from the sparse structure.");
 
                 values[index] = value;
             }
@@ -181,7 +181,7 @@ namespace CAESolvers
         private void CheckBounds(int row, int col)
         {
             if (row < 0 || row >= rows || col < 0 || col >= cols)
-                throw new IndexOutOfRangeException($"Индексы вне диапазона: ({row}, {col})");
+                throw new IndexOutOfRangeException($"Indices are out of range: ({row}, {col}).");
         }
 
         /// <summary>
@@ -218,7 +218,7 @@ namespace CAESolvers
         public double GetDiagonal(int row)
         {
             if (row < 0 || row >= rows)
-                throw new IndexOutOfRangeException($"Индекс строки {row} вне диапазона");
+                throw new IndexOutOfRangeException($"Row index {row} is out of range.");
 
             int index = diagonalIndices[row];
             return index >= 0 ? values[index] : 0.0;
@@ -230,7 +230,7 @@ namespace CAESolvers
         public double[] Multiply(double[] vector)
         {
             if (vector.Length != cols)
-                throw new ArgumentException($"Размер вектора {vector.Length} не соответствует числу столбцов {cols}");
+                throw new ArgumentException($"Vector length {vector.Length} does not match the matrix column count {cols}.");
 
             var result = new double[rows];
             for (int i = 0; i < rows; i++)
@@ -254,7 +254,7 @@ namespace CAESolvers
         public Dictionary<int, double> GetRow(int row)
         {
             if (row < 0 || row >= rows)
-                throw new IndexOutOfRangeException($"Индекс строки {row} вне диапазона");
+                throw new IndexOutOfRangeException($"Row index {row} is out of range.");
 
             var rowElements = new Dictionary<int, double>();
             int start = rowPointers[row];

@@ -1,4 +1,4 @@
-﻿using MaterialDB.Interfaces;
+using MaterialDB.Interfaces;
 using MaterialDB.MaterialData.MetallurgicalData;
 using MaterialDB.Utilities;
 using System;
@@ -71,7 +71,7 @@ namespace MaterialDB.MaterialData
         {
             if (DataTable.Columns.Count - 1 != phaseData.Count)
                 throw new Exception(
-   $"Кол-во фаз не равно кол-ву фаз свойства {Name}. Должно быть {DataTable.Columns.Count}");
+   $"The phase count does not match the phase count of property {Name}. Expected {DataTable.Columns.Count}.");
 
             var xAr = DataTable.Rows.Cast<DataRow>().Select(r => Convert.ToSingle(r[0])).ToArray();
             var yn = 0.0f;
@@ -98,7 +98,7 @@ namespace MaterialDB.MaterialData
         {
             if (DataTable.Columns.Count - 1 != phaseData.Rows.Count)
                 throw new Exception(
-   $"Кол-во фаз не равно кол-ву фаз свойства {Name}. Должно быть {DataTable.Columns.Count}");
+   $"The phase count does not match the phase count of property {Name}. Expected {DataTable.Columns.Count}.");
 
             var xAr = DataTable.Rows.Cast<DataRow>().Select(r => Convert.ToSingle(r[0])).ToArray();
             var yn = 0.0f;

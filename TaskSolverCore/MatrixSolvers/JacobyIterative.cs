@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -51,7 +51,7 @@ namespace TaskSolverCore.MatrixSolvers
                     float resu = Math.Abs(x[count - 1][i] - x[count - 2][i]);
 
                     if (float.IsNaN(resu) | float.IsInfinity(resu))
-                        throw new Exception("число NaN или бесконечность");
+                        throw new Exception("The value is NaN or infinite.");
                     dx[i] = resu;
                 }
                 var max = dx.Max();

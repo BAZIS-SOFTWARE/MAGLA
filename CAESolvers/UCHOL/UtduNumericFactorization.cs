@@ -95,7 +95,7 @@ namespace CAESolvers
             int n = Size;
             if (rightHandSide.Length != n)
                 throw new ArgumentException(
-                    $"Размер вектора правой части {rightHandSide.Length} не соответствует размеру матрицы {n}");
+                    $"The right-hand side length {rightHandSide.Length} does not match the matrix size {n}.");
 
             var permutation = symbolic.Permutation;
             var working = new double[n];
@@ -298,10 +298,10 @@ namespace CAESolvers
             long maxFrontLength = (long)supernodes.MaxFrontSize * (supernodes.MaxFrontSize + 1) / 2;
             if (maxFrontLength > int.MaxValue)
                 throw new InvalidOperationException(
-                    $"Наибольшая фронтальная матрица ({supernodes.MaxFrontSize} x {supernodes.MaxFrontSize}) " +
-                    "не представима одним массивом. Задача слишком плотная для прямого решателя в этой " +
-                    "постановке — проверьте расчётную схему на наличие уравнений, связывающих слишком " +
-                    "много неизвестных.");
+                    $"The largest frontal matrix ({supernodes.MaxFrontSize} x {supernodes.MaxFrontSize}) " +
+                    "cannot be represented by a single array. The problem is too dense for the direct solver in this " +
+                    "formulation. Check the model for equations that connect too " +
+                    "many unknowns.");
 
             var contributionPool = ArrayPool<double>.Create(
                 ContributionPoolLimit, Math.Clamp(options.ResolveWorkerCount(), 2, 8));
@@ -560,9 +560,9 @@ namespace CAESolvers
                     {
                         if (!options.AllowDiagonalRegularization)
                             throw new InvalidOperationException(
-                                $"Ведущий элемент {pivot:E3} в уравнении {firstColumn + k} (в порядке исключения) " +
-                                "не положителен: матрица не является положительно определённой. " +
-                                "Разрешите регуляризацию диагонали, если требуется довести факторизацию до конца.");
+                                $"Pivot {pivot:E3} in equation {firstColumn + k} (in elimination order) " +
+                                "is not positive: the matrix is not positive definite. " +
+                                "Enable diagonal regularization if factorization must be completed.");
 
                         if (pivot < 0.0)
                             context.NegativeCount++;
@@ -1018,7 +1018,7 @@ namespace CAESolvers
             {
                 var captured = Volatile.Read(ref failure);
                 if (captured != null)
-                    throw new InvalidOperationException("Численная факторизация не завершена.", captured);
+                    throw new InvalidOperationException("Numerical factorization has not completed.", captured);
             }
         }
     }

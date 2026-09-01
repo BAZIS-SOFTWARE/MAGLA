@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -74,7 +74,7 @@ namespace CAESolvers
         public void AddToElement(int row, int col, double value)
         {
             if (row < 0 || row >= rows || col < 0 || col >= cols)
-                throw new IndexOutOfRangeException($"Индексы вне диапазона: ({row}, {col})");
+                throw new IndexOutOfRangeException($"Indices are out of range: ({row}, {col}).");
 
             var position = new MatrixPosition(row, col);
             buffer.TryGetValue(position, out double existing);

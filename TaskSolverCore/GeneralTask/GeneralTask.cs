@@ -62,7 +62,7 @@ namespace TaskSolverCore
 
         enum TaskStatus : int { computed, aborted, finished }
 
-        private readonly ISymmetricLinearSolver matrixSolver;
+        private readonly ILinearSolver matrixSolver;
 
         internal GeneralParameters Parameters;
 
@@ -198,7 +198,7 @@ namespace TaskSolverCore
         public abstract Result CreateIntialResult(float time, ElementsData<T> elementsData);
         public abstract DataSet CreateDataSet(List<string> phasesNames);
         protected abstract void ApplyPreLoads(TaskSystemContext<T> context);
-        protected abstract LinearSystem<SymmetricCSRMatrix> CreateLinearSystem(TaskSystemContext<T> context);
+        protected abstract LinearSystem CreateLinearSystem(TaskSystemContext<T> context);
         protected abstract TaskIterationResult EvaluateIteration(
             TaskSystemContext<T> context,
             double[] solution,

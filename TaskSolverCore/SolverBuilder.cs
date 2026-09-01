@@ -5,7 +5,7 @@ namespace TaskSolverCore
 {
     internal static class SolverBuilder
     {
-        public static ISymmetricLinearSolver Create(SolverSettings settings)
+        public static ILinearSolver Create(SolverSettings settings)
         {
             ArgumentNullException.ThrowIfNull(settings);
 

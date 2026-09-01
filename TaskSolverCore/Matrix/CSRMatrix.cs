@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -123,7 +123,7 @@ namespace TaskSolverCore.Matrix
             get
             {
                 if (row < 0 || row >= rows || col < 0 || col >= cols)
-                    throw new IndexOutOfRangeException($"Индексы вне диапазона: ({row}, {col})");
+                    throw new IndexOutOfRangeException($"Indices are out of range: ({row}, {col}).");
 
                 // Быстрый поиск через словарь O(1)
                 if (positionMap.TryGetValue((row, col), out int index))
@@ -134,7 +134,7 @@ namespace TaskSolverCore.Matrix
             set
             {
                 if (row < 0 || row >= rows || col < 0 || col >= cols)
-                    throw new IndexOutOfRangeException($"Индексы вне диапазона: ({row}, {col})");
+                    throw new IndexOutOfRangeException($"Indices are out of range: ({row}, {col}).");
 
                 if (Math.Abs(value) < 1e-15) // Если значение близко к нулю
                 {
@@ -230,7 +230,7 @@ namespace TaskSolverCore.Matrix
         public double[] Multiply(double[] vector)
         {
             if (vector.Length != cols)
-                throw new ArgumentException($"Размер вектора {vector.Length} не соответствует числу столбцов {cols}");
+                throw new ArgumentException($"Vector length {vector.Length} does not match the matrix column count {cols}.");
 
             double[] result = new double[rows];
 
@@ -257,7 +257,7 @@ namespace TaskSolverCore.Matrix
         public Dictionary<int, double> GetRow(int row)
         {
             if (row < 0 || row >= rows)
-                throw new IndexOutOfRangeException($"Индекс строки {row} вне диапазона");
+                throw new IndexOutOfRangeException($"Row index {row} is out of range.");
 
             var rowElements = new Dictionary<int, double>();
             int start = rowPointers[row];

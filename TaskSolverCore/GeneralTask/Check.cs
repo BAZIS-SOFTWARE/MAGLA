@@ -1,4 +1,4 @@
-﻿//using PrFunctionLib;
+//using PrFunctionLib;
 
 using Model.Interfaces;
 using Model.Interfaces.MeshObjects;
@@ -19,14 +19,14 @@ namespace TaskSolverCore
                 if (dataItem.Group.ObjType == ObjType.Узел)
                 {
                     if (!dataItem.Group.Any(y => geo.ContainsNode(y.Number)))
-                        throw new Exception($"Не все объекты группы {dataItem.Group.Name} " +
-                            $"входят в список узлов, участвующих в расчете");
+                        throw new Exception($"Not all objects in group {dataItem.Group.Name} " +
+                            $"are included in the list of nodes participating in the calculation.");
                 }
                 else
                 {
                     if (!dataItem.Group.Any(y => elemsData.ContainsElement(y.Number)))
-                        throw new Exception($"Не все объекты группы {dataItem.Group.Name} " +
-                            $"входят в список элементов, участвующих в расчете");
+                        throw new Exception($"Not all objects in group {dataItem.Group.Name} " +
+                            $"are included in the list of elements participating in the calculation.");
                 }
             }
         }
@@ -42,8 +42,8 @@ namespace TaskSolverCore
                         foreach (var node in (item as IElement).GetVertexes())
                         {
                             if (!geo.ContainsNode(node.Number))
-                                throw new Exception($"Узел {node.Number} элемента {item.Number} группы {dataItem.Group.Name} " +
-           $"не входит в список узлов, участвующих в расчете");
+                                throw new Exception($"Node {node.Number} of element {item.Number} in group {dataItem.Group.Name} " +
+           $"is not included in the list of nodes participating in the calculation.");
                         }
 
                     }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -48,7 +48,7 @@ namespace TaskSolverCore.Matrix.Utilities
 
         public static void MergeSortFunction(List<T> array, IComparer<T> comparer)
         {
-            if (array.Count == 0) throw new Exception("пустой массив!");
+            if (array.Count == 0) throw new Exception("The array is empty.");
             temporaryArray = new T[array.Count];
             MergeSortFunction(array, 0, array.Count - 1, comparer);
         }
@@ -92,7 +92,7 @@ namespace TaskSolverCore.Matrix.Utilities
 
         public static void MergeSortFunction(List<T> array)
         {
-            if (array.Count == 0) throw new Exception("пустой массив!");
+            if (array.Count == 0) throw new Exception("The array is empty.");
             temporaryArray = new T[array.Count];
             MergeSortFunction(array, 0, array.Count - 1);
         }

@@ -1,4 +1,4 @@
-﻿namespace CAESolvers
+namespace CAESolvers
 {
     /// <summary>
     /// Накопитель вкладов для сборки <see cref="SymmetricCSRMatrix"/>
@@ -22,7 +22,7 @@
         public void AddToElement(int row, int col, double value)
         {
             if (row < 0 || row >= size || col < 0 || col >= size)
-                throw new IndexOutOfRangeException($"Индексы вне диапазона: ({row}, {col})");
+                throw new IndexOutOfRangeException($"Indices are out of range: ({row}, {col}).");
 
             Normalize(ref row, ref col);
 

@@ -1,4 +1,4 @@
-﻿//using PrFunctionLib;
+//using PrFunctionLib;
 
 using ResultDB;
 using TaskSolverCore.ElementData;
@@ -11,12 +11,12 @@ namespace TaskSolverCore
         {
             var dbName = Directory.GetFiles($@"{Folder}\ResultsData", file);
             if (dbName.Length == 0)
-                throw new Exception($"Отсутствует файл результатов {file}");
+                throw new Exception($"Result file {file} is missing.");
 
             var times = ResultsLoader.GetValues(dbName[0], "nodes", "Time");
 
             if (times.Count() == 0)
-                throw new Exception($"В файле {file} отсутствуют результаты...");
+                throw new Exception($"File {file} contains no results.");
 
             WriteToLog($"Загрузка результатов для времени {times.Last()}...");
             return ResultsLoader.GetResult(dbName[0], new List<string>() { "nodes", "elements" }, times.Last());

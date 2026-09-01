@@ -1,4 +1,4 @@
-﻿using MaterialDB.Interfaces;
+using MaterialDB.Interfaces;
 using Newtonsoft.Json;
 using System.Collections;
 //using System.Xml;
@@ -193,7 +193,7 @@ namespace MaterialDB.MaterialData
             var filePath = FindFileByPath(dbFolder, dbName);
             if (filePath == null)
             {
-                throw new Exception($"Не найдена база {dbName} в папке {dbFolder}");
+                throw new Exception($"Database {dbName} was not found in folder {dbFolder}.");
             }
 
             else

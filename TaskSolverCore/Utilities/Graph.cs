@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
@@ -357,7 +357,7 @@ namespace TaskSolverCore.Utilities
                 }                  
             }
 
-            if (resu == -1) throw new Exception("Не найден корневой узел!");
+            if (resu == -1) throw new Exception("Root node was not found!");
             return resu;
         }
         /// <summary>

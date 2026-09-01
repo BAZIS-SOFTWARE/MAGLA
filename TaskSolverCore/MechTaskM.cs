@@ -1,4 +1,4 @@
-﻿using MaterialDB.MaterialData.MetallurgicalData;
+using MaterialDB.MaterialData.MetallurgicalData;
 using CAESolvers;
 using MathNet.Numerics.Distributions;
 using MathNet.Numerics.LinearAlgebra;
@@ -96,7 +96,7 @@ namespace TaskSolverCore
                 foreach (IElement obj in gr)
                 {
                     if (elementsNumbers.Contains(obj.Number))
-                        throw new Exception($"Элемент с номером {obj.Number} уже используется. Проверьте группы в разделе \"материалы\"");
+                        throw new Exception($"Element {obj.Number} is already in use. Check the groups in the \"Materials\" section.");
 
                     elementsNumbers.Add(obj.Number);
 
@@ -421,7 +421,7 @@ namespace TaskSolverCore
 
                 var termalDB = Directory.GetFiles($@"{Folder}\ResultsData", ThermalFile);
                 if (termalDB.Length == 0)
-                    throw new Exception($"Не найден файл {ThermalFile}");
+                    throw new Exception($"File {ThermalFile} was not found.");
 
                 result = ResultsLoader.GetResult(termalDB[0], new List<string>() { "elements" }, termalTime);
                 return true;
@@ -439,7 +439,7 @@ namespace TaskSolverCore
                 if (col != null)
                     item.Value = (float)termal.Data.Tables["elements"].Rows.Find(element.Number)[item.Name];
                 else
-                    throw new Exception(@$"фаза ""{item.Name}"" не найдена в базе результатов");
+                    throw new Exception(@$"Phase ""{item.Name}"" was not found in the result database.");
                 //for (int i = 4; i < termal.Data.Tables["elements"].Columns[].Count; i++)
                 //{
                 //    if(termal.Data.Tables["elements"].Columns[i].ColumnName == item.Name)
@@ -771,7 +771,7 @@ namespace TaskSolverCore
             return matrixData;
         }
 
-        protected override LinearSystem<SymmetricCSRMatrix> CreateLinearSystem(TaskSystemContext<ElementMechanical> context)
+        protected override LinearSystem CreateLinearSystem(TaskSystemContext<ElementMechanical> context)
         {
             var matrix = context.Matrices.Get<SymmetricCSRMatrix>(
                 MatrixType.stifness);
@@ -780,7 +780,7 @@ namespace TaskSolverCore
                 .Vector
                 .ToArray();
 
-            return new LinearSystem<SymmetricCSRMatrix>(matrix, rightHandSide);
+            return new LinearSystem(matrix, rightHandSide);
         }
 
         private static SymmetricCSRMatrix BuildSymmetricMatrix(
@@ -866,7 +866,7 @@ namespace TaskSolverCore
             if (dbTermNames.Count() != 0)
                 return ResultsLoader.GetValues(dbTermNames[0], "elements","Time").ToList();
             else
-                throw new Exception($"Не найден файл {termalFile}...");
+                throw new Exception($"File {termalFile} was not found.");
         }
 
         protected override void FillMatrices(

@@ -1,4 +1,4 @@
-﻿using MaterialDB.Interfaces;
+using MaterialDB.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -125,12 +125,12 @@ namespace PropertiesCalculator
             {
                 var propNameUnits = matAr.First(x => x.Split(',')[0] == propName);
 
-                if (propNameUnits == "") throw new Exception("Свойство " + propName + " не найдено!");
+                if (propNameUnits == "") throw new Exception("Property " + propName + " was not found!");
 
                 var startInd = Array.IndexOf(matAr, propNameUnits);
-                if (startInd == -1) throw new Exception("Точка начала данных свойства" + propName + " не найдена!");
+                if (startInd == -1) throw new Exception("The start data point for property " + propName + " was not found!");
                 var stopInd = Array.IndexOf(matAr, "#" + propName);
-                if (stopInd == -1) throw new Exception("Точка окончания данных свойства" + propName + " не найдена!");
+                if (stopInd == -1) throw new Exception("The end data point for property " + propName + " was not found!");
 
                 var propNameUnitsAr = propNameUnits.Split(',');
 

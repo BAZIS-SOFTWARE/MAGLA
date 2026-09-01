@@ -4,7 +4,7 @@ namespace CAESolvers
 
     /// <summary>
     /// Исключение, возникающее при вызове итерационного решателя через
-    /// <see cref="ISymmetricLinearSolver"/>, если заданная точность не была
+    /// <see cref="ILinearSolver"/>, если заданная точность не была
     /// достигнута.
     /// </summary>
     public sealed class SolverConvergenceException : InvalidOperationException
