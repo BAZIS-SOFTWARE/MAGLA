@@ -6,17 +6,14 @@ namespace Tests
     public class LinearSystemTests
     {
         [TestMethod]
-        public void Constructor_ExposesTypedAndUntypedMatrix()
+        public void Constructor_ExposesMatrixAndRightHandSide()
         {
             var matrix = BuildSymmetricMatrix(2);
             var rightHandSide = new[] { 1.0, 2.0 };
-            var system = new LinearSystem<SymmetricCSRMatrix>(matrix, rightHandSide);
-            var untypedSystem = (ILinearSystem)system;
+            var system = new LinearSystem(matrix, rightHandSide);
 
             Assert.AreSame(matrix, system.Matrix);
-            Assert.AreSame(matrix, untypedSystem.Matrix);
             Assert.AreSame(rightHandSide, system.RightHandSide);
-            Assert.AreSame(rightHandSide, untypedSystem.RightHandSide);
         }
 
         [TestMethod]
@@ -29,7 +26,7 @@ namespace Tests
             builder.AddToElement(1, 1, 3.0);
 
             var matrix = builder.Build();
-            var system = new LinearSystem<CSRMatrix>(matrix, new[] { 4.0, 5.0 });
+            var system = new LinearSystem(matrix, new[] { 4.0, 5.0 });
 
             Assert.AreSame(matrix, system.Matrix);
             Assert.AreEqual(2, system.RightHandSide.Length);
@@ -38,7 +35,7 @@ namespace Tests
         [TestMethod]
         public void Constructor_ThrowsForNullMatrix()
         {
-            var exception = Assert.ThrowsException<ArgumentNullException>(() => new LinearSystem<SymmetricCSRMatrix>(null!, Array.Empty<double>()));
+            var exception = Assert.ThrowsException<ArgumentNullException>(() => new LinearSystem(null!, Array.Empty<double>()));
 
             Assert.AreEqual("matrix", exception.ParamName);
         }
@@ -47,7 +44,7 @@ namespace Tests
         public void Constructor_ThrowsForNullRightHandSide()
         {
             var matrix = BuildSymmetricMatrix(1);
-            var exception = Assert.ThrowsException<ArgumentNullException>(() => new LinearSystem<SymmetricCSRMatrix>(matrix, null!));
+            var exception = Assert.ThrowsException<ArgumentNullException>(() => new LinearSystem(matrix, null!));
 
             Assert.AreEqual("rightHandSide", exception.ParamName);
         }
@@ -56,7 +53,7 @@ namespace Tests
         public void Constructor_ThrowsWhenRightHandSideLengthDoesNotMatchRowCount()
         {
             var matrix = BuildSymmetricMatrix(2);
-            var exception = Assert.ThrowsException<ArgumentException>(() => new LinearSystem<SymmetricCSRMatrix>(matrix, new[] { 1.0 }));
+            var exception = Assert.ThrowsException<ArgumentException>(() => new LinearSystem(matrix, new[] { 1.0 }));
 
             Assert.AreEqual("rightHandSide", exception.ParamName);
         }

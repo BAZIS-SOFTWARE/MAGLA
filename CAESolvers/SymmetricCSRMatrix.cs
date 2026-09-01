@@ -103,8 +103,8 @@ namespace CAESolvers
             int index = FindIndex(row, col);
             if (index < 0)
                 throw new InvalidOperationException(
-                    $"Позиция ({row}, {col}) отсутствует в структуре разреженности. " +
-                    "Включите эту позицию в сборку через SymmetricSparseMatrixCSRBuilder заранее.");
+                    $"Position ({row}, {col}) is absent from the sparse structure. " +
+                    "Add this position to SymmetricSparseMatrixCSRBuilder before assembly.");
 
             values[index] += value;
         }
@@ -128,7 +128,7 @@ namespace CAESolvers
                 throw new ArgumentNullException(nameof(rightHandSide));
             if (rightHandSide.Length != size)
                 throw new ArgumentException(
-                    $"Размер правой части {rightHandSide.Length} не соответствует размеру матрицы {size}",
+                    $"The right-hand side length {rightHandSide.Length} does not match the matrix size {size}.",
                     nameof(rightHandSide));
             if (index < 0 || index >= size)
                 throw new ArgumentOutOfRangeException(nameof(index));
@@ -136,7 +136,7 @@ namespace CAESolvers
             int diagonalIndex = diagonalIndices[index];
             if (diagonalIndex < 0)
                 throw new InvalidOperationException(
-                    $"Диагональная позиция ({index}, {index}) отсутствует в структуре разреженности.");
+                    $"Diagonal position ({index}, {index}) is absent from the sparse structure.");
 
             for (int row = 0; row < size; row++)
             {
@@ -189,7 +189,7 @@ namespace CAESolvers
                 int index = FindIndex(row, col);
                 if (index < 0)
                     throw new InvalidOperationException(
-                        $"Позиция ({row}, {col}) отсутствует в структуре разреженности.");
+                        $"Position ({row}, {col}) is absent from the sparse structure.");
 
                 values[index] = value;
             }
@@ -208,7 +208,7 @@ namespace CAESolvers
         private void CheckBounds(int row, int col)
         {
             if (row < 0 || row >= size || col < 0 || col >= size)
-                throw new IndexOutOfRangeException($"Индексы вне диапазона: ({row}, {col})");
+                throw new IndexOutOfRangeException($"Indices are out of range: ({row}, {col}).");
         }
 
         /// <summary>
@@ -245,7 +245,7 @@ namespace CAESolvers
         public double GetDiagonal(int row)
         {
             if (row < 0 || row >= size)
-                throw new IndexOutOfRangeException($"Индекс строки {row} вне диапазона");
+                throw new IndexOutOfRangeException($"Row index {row} is out of range.");
 
             int index = diagonalIndices[row];
             return index >= 0 ? values[index] : 0.0;
@@ -259,7 +259,7 @@ namespace CAESolvers
         public double[] Multiply(double[] vector)
         {
             if (vector.Length != size)
-                throw new ArgumentException($"Размер вектора {vector.Length} не соответствует размеру матрицы {size}");
+                throw new ArgumentException($"Vector length {vector.Length} does not match the matrix size {size}.");
 
             var result = new double[size];
 
@@ -297,9 +297,9 @@ namespace CAESolvers
             if (result == null)
                 throw new ArgumentNullException(nameof(result));
             if (x.Length != size)
-                throw new ArgumentException($"Размер вектора {x.Length} не соответствует размеру матрицы {size}");
+                throw new ArgumentException($"Vector length {x.Length} does not match the matrix size {size}.");
             if (result.Length != size)
-                throw new ArgumentException($"Размер результата {result.Length} не соответствует размеру матрицы {size}");
+                throw new ArgumentException($"Result length {result.Length} does not match the matrix size {size}.");
 
             Array.Clear(result, 0, size);
 
@@ -334,7 +334,7 @@ namespace CAESolvers
         public Dictionary<int, double> GetRow(int row)
         {
             if (row < 0 || row >= size)
-                throw new IndexOutOfRangeException($"Индекс строки {row} вне диапазона");
+                throw new IndexOutOfRangeException($"Row index {row} is out of range.");
 
             var rowElements = new Dictionary<int, double>();
 

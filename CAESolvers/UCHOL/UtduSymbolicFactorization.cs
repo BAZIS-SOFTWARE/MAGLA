@@ -307,15 +307,15 @@ namespace CAESolvers
         {
             if (matrix.Size != Size)
                 throw new ArgumentException(
-                    $"Размер матрицы {matrix.Size} не соответствует символьной факторизации, " +
-                    $"построенной для {Size} уравнений.");
+                    $"Matrix size {matrix.Size} does not match the symbolic factorization " +
+                    $"built for {Size} equations.");
 
             if (matrix.NonZeroCount != MatrixNonZeroCount)
                 throw new ArgumentException(
-                    "Структура разреженности матрицы изменилась с момента символьного анализа " +
-                    $"(было {MatrixNonZeroCount} ненулевых элементов, стало {matrix.NonZeroCount}). " +
-                    "Переиспользовать символьную факторизацию можно только при неизменной структуре — " +
-                    "выполните Analyze заново.");
+                    "The matrix sparse structure has changed since symbolic analysis " +
+                    $"(previously {MatrixNonZeroCount} nonzero elements, now {matrix.NonZeroCount}). " +
+                    "Symbolic factorization can be reused only when the structure is unchanged. " +
+                    "Run Analyze again.");
         }
     }
 }

@@ -1,8 +1,6 @@
 classDiagram
     direction LR
 
-    %% SolverBuilder расположен в TaskSolverCore, но является точкой создания решателей.
-
     namespace CAESolvers {
         class ICsrMatrix {
             <<interface>>
@@ -17,24 +15,20 @@ classDiagram
         class CSRMatrix
         class SymmetricCSRMatrix
 
-        class ILinearSystem {
-            <<interface>>
+        class LinearSystem {
             +ICsrMatrix Matrix
             +double[] RightHandSide
         }
 
-        class LinearSystem["LinearSystem<TMatrix>"] {
-            +TMatrix Matrix
-            +double[] RightHandSide
+        class ILinearSolver {
+            <<interface>>
+            +Solve(LinearSystem system) double[]
         }
 
-        class ILinearSolver["ILinearSolver<TMatrix>"] {
-            <<interface>>
-            +Solve(LinearSystem~TMatrix~ system) double[]
-        }
-
-        class ISymmetricLinearSolver {
-            <<interface>>
+        class LinearSolver["LinearSolver<TMatrix>"] {
+            <<abstract>>
+            +Solve(LinearSystem system) double[]
+            #SolveCore(TMatrix matrix, double[] rightHandSide) double[]
         }
 
         class IterativeSolver["IterativeSolver<TMatrix, TResult>"] {
@@ -42,7 +36,7 @@ classDiagram
             +double RelativeTolerance
             +int MaxIterations
             +TResult LastResult
-            +Solve(LinearSystem~TMatrix~ system) double[]
+            #SolveCore(TMatrix matrix, double[] rightHandSide) double[]
         }
 
         class IterativeSolverResult {
@@ -54,9 +48,8 @@ classDiagram
 
         class ConjugateGradientGaussPreSolver {
             +bool UsePreconditioner
-            +Solve(LinearSystem~SymmetricCSRMatrix~ system) double[]
-            +Solve(LinearSystem~SymmetricCSRMatrix~ system, double[] initialGuess) double[]
-            +Solve(LinearSystem~SymmetricCSRMatrix~ system, double[] initialGuess, JacobiPreconditioner preconditioner) double[]
+            +SolveWithInitialGuess(LinearSystem system, double[] initialGuess) double[]
+            +SolveWithInitialGuess(LinearSystem system, double[] initialGuess, JacobiPreconditioner preconditioner) double[]
         }
 
         class JacobiPreconditioner {
@@ -70,9 +63,8 @@ classDiagram
         class BiCgStabSolver {
             +bool UsePreconditioner
             +double BreakdownTolerance
-            +Solve(LinearSystem~CSRMatrix~ system) double[]
-            +Solve(LinearSystem~CSRMatrix~ system, double[] initialGuess) double[]
-            +Solve(LinearSystem~CSRMatrix~ system, double[] initialGuess, Ilu0Preconditioner preconditioner) double[]
+            +SolveWithInitialGuess(LinearSystem system, double[] initialGuess) double[]
+            +SolveWithInitialGuess(LinearSystem system, double[] initialGuess, Ilu0Preconditioner preconditioner) double[]
         }
 
         class Ilu0Preconditioner {
@@ -87,7 +79,7 @@ classDiagram
             +UtduSolverOptions Options
             +Analyze(SymmetricCSRMatrix matrix) UtduSymbolicFactorization
             +Factorize(SymmetricCSRMatrix matrix, UtduSymbolicFactorization symbolic) UtduNumericFactorization
-            +Solve(LinearSystem~SymmetricCSRMatrix~ system) double[]
+            #SolveCore(SymmetricCSRMatrix matrix, double[] rightHandSide) double[]
         }
 
         class UtduSolverOptions
@@ -101,27 +93,16 @@ classDiagram
         }
     }
 
-    namespace TaskSolverCore {
-        class SolverBuilder {
-            <<static>>
-            +CreateSymmetric(SolverSettings settings) ILinearSolver~SymmetricCSRMatrix~
-            +CreateGeneral(SolverSettings settings) ILinearSolver~CSRMatrix~
-            +Create~TMatrix~(SolverSettings settings, solverFactory) ILinearSolver~TMatrix~
-        }
-    }
-
     ICsrMatrix <|.. CSRMatrix
     ICsrMatrix <|.. SymmetricCSRMatrix
 
-    ILinearSystem <|.. LinearSystem
     LinearSystem o-- ICsrMatrix : Matrix
 
-    ILinearSolver <|.. IterativeSolver
-    ILinearSolver <|-- ISymmetricLinearSolver
+    ILinearSolver <|.. LinearSolver
+    LinearSolver <|-- IterativeSolver
+    LinearSolver <|-- SymmetricUtduSolver
     IterativeSolver <|-- ConjugateGradientGaussPreSolver
     IterativeSolver <|-- BiCgStabSolver
-    ISymmetricLinearSolver <|.. ConjugateGradientGaussPreSolver
-    ISymmetricLinearSolver <|.. SymmetricUtduSolver
 
     IterativeSolver --> IterativeSolverResult : LastResult
     ConjugateGradientGaussPreSolver ..> JacobiPreconditioner : creates or accepts
@@ -136,8 +117,3 @@ classDiagram
     SymmetricUtduSolver --> UtduNumericFactorization : Factorize
     UtduNumericFactorization --> UtduSymbolicFactorization : uses
     SymmetricUtduSolver ..> SymmetricCSRMatrix
-
-    SolverBuilder ..> ILinearSolver : creates
-    SolverBuilder ..> ConjugateGradientGaussPreSolver
-    SolverBuilder ..> BiCgStabSolver
-    SolverBuilder ..> SymmetricUtduSolver

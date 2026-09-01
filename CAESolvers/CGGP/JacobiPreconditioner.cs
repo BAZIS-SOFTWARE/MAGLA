@@ -25,7 +25,7 @@ namespace CAESolvers
             {
                 var diagonal = matrix.GetDiagonal(index);
                 if (!double.IsFinite(diagonal) || Math.Abs(diagonal) <= PivotTolerance)
-                    throw new InvalidOperationException($"Нулевой или недопустимый диагональный элемент в строке {index} при построении предобуславливателя Якоби.");
+                    throw new InvalidOperationException($"The diagonal element in row {index} is zero or invalid while building the Jacobi preconditioner.");
 
                 inverseDiagonal[index] = 1.0 / diagonal;
             }
@@ -47,9 +47,9 @@ namespace CAESolvers
             ArgumentNullException.ThrowIfNull(result);
 
             if (source.Length != Size)
-                throw new ArgumentException("Размер исходного вектора не соответствует размеру предобуславливателя.", nameof(source));
+                throw new ArgumentException("The source vector length does not match the preconditioner size.", nameof(source));
             if (result.Length != Size)
-                throw new ArgumentException("Размер результирующего вектора не соответствует размеру предобуславливателя.", nameof(result));
+                throw new ArgumentException("The result vector length does not match the preconditioner size.", nameof(result));
 
             for (var index = 0; index < Size; index++)
                 result[index] = inverseDiagonal[index] * source[index];

@@ -88,7 +88,7 @@ namespace CAESolvers
             int n = matrix.Size;
             if (inversePermutation.Length != n)
                 throw new ArgumentException(
-                    $"Длина перестановки {inversePermutation.Length} не соответствует размеру матрицы {n}");
+                    $"Permutation length {inversePermutation.Length} does not match the matrix size {n}.");
 
             var rowPointers = matrix.RowPointers;
             var columnIndices = matrix.ColumnIndices;

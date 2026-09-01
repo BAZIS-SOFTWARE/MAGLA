@@ -110,7 +110,7 @@ namespace CAESolvers
             }
 
             throw new InvalidOperationException(
-                "AMD: не найдена вершина для исключения при непустом графе — внутренняя ошибка.");
+                "AMD: no vertex was found for elimination in a non-empty graph. This is an internal error.");
         }
     }
 }

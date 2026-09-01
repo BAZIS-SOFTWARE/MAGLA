@@ -38,8 +38,7 @@ namespace CAESolvers
     /// бросает исключение, а не возвращает бессмысленный результат.
     /// </summary>
     public class ConjugateGradientGaussPreSolver
-        : IterativeSolver<SymmetricCSRMatrix, IterativeSolverResult>,
-          ISymmetricLinearSolver
+        : IterativeSolver<SymmetricCSRMatrix, IterativeSolverResult>
     {
         /// <summary>
         /// Включает диагональное (Якоби) предобуславливание. По умолчанию
@@ -49,9 +48,9 @@ namespace CAESolvers
         /// </summary>
         public bool UsePreconditioner { get; set; } = true;
 
-        public override double[] Solve(LinearSystem<SymmetricCSRMatrix> system)
+        protected override double[] SolveCore(SymmetricCSRMatrix matrix, double[] rightHandSide)
         {
-            return Solve(system, null, null);
+            return SolveWithInitialGuess(matrix, rightHandSide, null, null);
         }
 
         /// <summary>
@@ -59,9 +58,10 @@ namespace CAESolvers
         /// <see cref="UsePreconditioner"/>). Если задан initialGuess, он
         /// используется как начальное приближение x0 (иначе x0 = 0).
         /// </summary>
-        public double[] Solve(LinearSystem<SymmetricCSRMatrix> system, double[]? initialGuess)
+        public double[] SolveWithInitialGuess(LinearSystem system, double[]? initialGuess)
         {
-            return Solve(system, initialGuess, null);
+            var matrix = GetMatrix(system);
+            return SolveWithInitialGuess(matrix, system.RightHandSide, initialGuess, null);
         }
 
         /// <summary>
@@ -69,14 +69,17 @@ namespace CAESolvers
         /// предобуславливатель Якоби. Переданный предобуславливатель имеет
         /// приоритет над <see cref="UsePreconditioner"/>.
         /// </summary>
-        public double[] Solve(LinearSystem<SymmetricCSRMatrix> system, double[]? initialGuess, JacobiPreconditioner? preconditioner)
+        public double[] SolveWithInitialGuess(LinearSystem system, double[]? initialGuess, JacobiPreconditioner? preconditioner)
+        {
+            var matrix = GetMatrix(system);
+            return SolveWithInitialGuess(matrix, system.RightHandSide, initialGuess, preconditioner);
+        }
+
+        private double[] SolveWithInitialGuess(SymmetricCSRMatrix matrix, double[] rightHandSide, double[]? initialGuess, JacobiPreconditioner? preconditioner)
         {
             LastResult = null;
 
-            ValidateCommonArguments(system);
-
-            var matrix = system.Matrix;
-            var b = system.RightHandSide;
+            ValidateCommonArguments();
 
             var n = matrix.Size;
 
@@ -84,11 +87,11 @@ namespace CAESolvers
             {
                 if (initialGuess.Length != n)
                     throw new ArgumentException(
-                        $"Размер начального приближения {initialGuess.Length} не соответствует размеру матрицы {n}");
+                        $"The initial guess length {initialGuess.Length} does not match the matrix size {n}.");
             }
 
             if (preconditioner != null && !ReferenceEquals(preconditioner.Matrix, matrix))
-                throw new ArgumentException("Предобуславливатель построен для другой матрицы.", nameof(preconditioner));
+                throw new ArgumentException("The preconditioner was built for another matrix.", nameof(preconditioner));
 
             var x = initialGuess != null
                 ? (double[])initialGuess.Clone()
@@ -97,7 +100,7 @@ namespace CAESolvers
             if (n == 0)
                 return Complete(new IterativeSolverResult(x, 0, true, 0.0));
 
-            var residualThreshold = RelativeTolerance * CalculateNorm(b);
+            var residualThreshold = RelativeTolerance * CalculateNorm(rightHandSide);
 
             // Рабочие векторы на весь вызов: невязка r, предобусловленная
             // невязка z, направление спуска p и произведение A * p.
@@ -109,7 +112,7 @@ namespace CAESolvers
             // До входа в цикл Ap служит буфером под A * x0.
             matrix.Multiply(x, Ap);
             for (var i = 0; i < n; i++)
-                r[i] = b[i] - Ap[i];
+                r[i] = rightHandSide[i] - Ap[i];
 
             var rNorm = CalculateNorm(r);
 
@@ -133,7 +136,7 @@ namespace CAESolvers
 
                 if (pAp <= 0.0)
                     throw new InvalidOperationException(
-                        "p^T A p <= 0 — матрица не является положительно определённой, метод CG неприменим.");
+                        "p^T A p <= 0. The matrix is not positive definite, so the CG method cannot be applied.");
 
                 var alpha = rzOld / pAp;
 

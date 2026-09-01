@@ -9,11 +9,11 @@ namespace Tests
         public void Solve_CgComparisonSystem_ConvergesWithinThreeIterations()
         {
             var matrix = CgComparisonData.BuildMatrix();
-            var system = new LinearSystem<CSRMatrix>(matrix, CgComparisonData.RightHandSide);
+            var system = new LinearSystem(matrix, CgComparisonData.RightHandSide);
             var preconditioner = new Ilu0Preconditioner(matrix);
             var solver = new BiCgStabSolver { RelativeTolerance = 1e-12, MaxIterations = 3 };
 
-            var solution = solver.Solve(system, new double[matrix.RowCount], preconditioner);
+            var solution = solver.SolveWithInitialGuess(system, new double[matrix.RowCount], preconditioner);
             var result = solver.LastResult!;
 
             Assert.IsTrue(result.Converged, $"Итерации: {result.Iterations}, норма: {result.ResidualNorm:E16}");
@@ -30,7 +30,7 @@ namespace Tests
         public void Solve_CgComparisonSystem_ConvergesToExactSolution()
         {
             var matrix = CgComparisonData.BuildMatrix();
-            var system = new LinearSystem<CSRMatrix>(matrix, CgComparisonData.RightHandSide);
+            var system = new LinearSystem(matrix, CgComparisonData.RightHandSide);
             var solver = new BiCgStabSolver { RelativeTolerance = 1e-12, MaxIterations = 100 };
 
             var solution = solver.Solve(system);
@@ -47,8 +47,8 @@ namespace Tests
         {
             var matrix = BuildNonsymmetricMatrix();
             var expected = new[] { 1.0, -2.0, 3.0 };
-            var system = new LinearSystem<CSRMatrix>(matrix, matrix.Multiply(expected));
-            var solver = (ILinearSolver<CSRMatrix>)new BiCgStabSolver { RelativeTolerance = 1e-12, MaxIterations = 20, UsePreconditioner = usePreconditioner };
+            var system = new LinearSystem(matrix, matrix.Multiply(expected));
+            ILinearSolver solver = new BiCgStabSolver { RelativeTolerance = 1e-12, MaxIterations = 20, UsePreconditioner = usePreconditioner };
 
             var solution = solver.Solve(system);
 
@@ -61,10 +61,10 @@ namespace Tests
         {
             var matrix = BuildNonsymmetricMatrix();
             var expected = new[] { 1.0, -2.0, 3.0 };
-            var system = new LinearSystem<CSRMatrix>(matrix, matrix.Multiply(expected));
+            var system = new LinearSystem(matrix, matrix.Multiply(expected));
             var solver = new BiCgStabSolver { RelativeTolerance = 1e-12 };
 
-            var solution = solver.Solve(system, expected);
+            var solution = solver.SolveWithInitialGuess(system, expected);
 
             CollectionAssert.AreEqual(expected, solution);
             Assert.AreEqual(0, solver.LastResult!.Iterations);

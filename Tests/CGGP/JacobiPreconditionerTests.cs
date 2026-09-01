@@ -44,9 +44,9 @@ namespace Tests
             var firstExpected = new[] { 1.0, -2.0, 3.0 };
             var secondExpected = new[] { -4.0, 5.0, 0.5 };
 
-            var first = solver.Solve(new LinearSystem<SymmetricCSRMatrix>(matrix, matrix.Multiply(firstExpected)), null, preconditioner);
+            var first = solver.SolveWithInitialGuess(new LinearSystem(matrix, matrix.Multiply(firstExpected)), null, preconditioner);
             Assert.AreEqual(1, solver.LastResult!.Iterations);
-            var second = solver.Solve(new LinearSystem<SymmetricCSRMatrix>(matrix, matrix.Multiply(secondExpected)), null, preconditioner);
+            var second = solver.SolveWithInitialGuess(new LinearSystem(matrix, matrix.Multiply(secondExpected)), null, preconditioner);
             Assert.AreEqual(1, solver.LastResult!.Iterations);
 
             CollectionAssert.AreEqual(firstExpected, first);
@@ -58,10 +58,10 @@ namespace Tests
         {
             var matrix = BuildDiagonalMatrix(new[] { 2.0, 4.0 });
             var otherMatrix = BuildDiagonalMatrix(new[] { 2.0, 4.0 });
-            var system = new LinearSystem<SymmetricCSRMatrix>(matrix, new[] { 2.0, 4.0 });
+            var system = new LinearSystem(matrix, new[] { 2.0, 4.0 });
             var preconditioner = new JacobiPreconditioner(otherMatrix);
 
-            Assert.ThrowsException<ArgumentException>(() => new ConjugateGradientGaussPreSolver().Solve(system, null, preconditioner));
+            Assert.ThrowsException<ArgumentException>(() => new ConjugateGradientGaussPreSolver().SolveWithInitialGuess(system, null, preconditioner));
         }
 
         private static SymmetricCSRMatrix BuildDiagonalMatrix(double[] diagonal)

@@ -1,7 +1,7 @@
 namespace CAESolvers
 {
     public abstract class IterativeSolver<TMatrix, TResult>
-        : ILinearSolver<TMatrix>
+        : LinearSolver<TMatrix>
         where TMatrix : class, ICsrMatrix
         where TResult : IterativeSolverResult
     {
@@ -18,17 +18,13 @@ namespace CAESolvers
 
         public TResult? LastResult { get; protected set; }
 
-        public abstract double[] Solve(LinearSystem<TMatrix> system);
-
         protected double CalculateNorm(double[] vector)
         {
             return residualCalculator.CalculateNorm(vector);
         }
 
-        protected void ValidateCommonArguments(LinearSystem<TMatrix> system)
+        protected void ValidateCommonArguments()
         {
-            ArgumentNullException.ThrowIfNull(system);
-
             if (!double.IsFinite(RelativeTolerance) ||
                 RelativeTolerance < 0.0)
             {

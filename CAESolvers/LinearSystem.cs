@@ -1,26 +1,23 @@
 namespace CAESolvers
 {
     /// <summary>
-    /// Линейная система с конкретным типом CSR-матрицы.
+    /// Линейная система с CSR-матрицей.
     /// </summary>
-    /// <typeparam name="TMatrix">Тип матрицы системы.</typeparam>
-    public sealed class LinearSystem<TMatrix> : ILinearSystem where TMatrix : class, ICsrMatrix
+    public sealed class LinearSystem
     {
-        public LinearSystem(TMatrix matrix, double[] rightHandSide)
+        public LinearSystem(ICsrMatrix matrix, double[] rightHandSide)
         {
             Matrix = matrix ?? throw new ArgumentNullException(nameof(matrix));
             RightHandSide = rightHandSide ?? throw new ArgumentNullException(nameof(rightHandSide));
 
             if (matrix.RowCount != rightHandSide.Length)
             {
-                throw new ArgumentException("Размер правой части не соответствует числу строк матрицы.", nameof(rightHandSide));
+                throw new ArgumentException("The right-hand side length does not match the matrix row count.", nameof(rightHandSide));
             }
         }
 
-        public TMatrix Matrix { get; }
+        public ICsrMatrix Matrix { get; }
 
         public double[] RightHandSide { get; }
-
-        ICsrMatrix ILinearSystem.Matrix => Matrix;
     }
 }

@@ -346,9 +346,9 @@ namespace CAESolvers
 
                 if (write != PatternPointers[s + 1])
                     throw new InvalidOperationException(
-                        $"Символьная фаза: предсказанный размер фронта суперузла {s} " +
-                        $"({PatternPointers[s + 1] - PatternPointers[s]}) не совпал с фактическим " +
-                        $"({write - PatternPointers[s]}). Это внутренняя ошибка символьного анализа.");
+                        $"Symbolic phase: predicted front size of supernode {s} " +
+                        $"({PatternPointers[s + 1] - PatternPointers[s]}) does not match actual " +
+                        $"({write - PatternPointers[s]}). This is an internal symbolic analysis error.");
 
                 Array.Sort(PatternRows, PatternPointers[s], FrontSize(s));
             }

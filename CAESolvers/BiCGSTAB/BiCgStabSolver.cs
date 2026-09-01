@@ -12,40 +12,43 @@ namespace CAESolvers
         /// <summary>Порог обнаружения численного breakdown алгоритма.</summary>
         public double BreakdownTolerance { get; set; } = 1e-30;
 
-        /// <inheritdoc/>
-        public override double[] Solve(LinearSystem<CSRMatrix> system)
+        protected override double[] SolveCore(CSRMatrix matrix, double[] rightHandSide)
         {
-            return Solve(system, null, null);
+            return SolveWithInitialGuess(matrix, rightHandSide, null, null);
         }
 
         /// <summary>Решает систему с заданным начальным приближением.</summary>
-        public double[] Solve(LinearSystem<CSRMatrix> system, double[]? initialGuess)
+        public double[] SolveWithInitialGuess(LinearSystem system, double[]? initialGuess)
         {
-            return Solve(system, initialGuess, null);
+            var matrix = GetMatrix(system);
+            return SolveWithInitialGuess(matrix, system.RightHandSide, initialGuess, null);
         }
 
         /// <summary>
         /// Решает систему с возможностью переиспользовать готовую ILU(0)-факторизацию.
         /// Переданный предобуславливатель имеет приоритет над UsePreconditioner.
         /// </summary>
-        public double[] Solve(LinearSystem<CSRMatrix> system, double[]? initialGuess, Ilu0Preconditioner? preconditioner)
+        public double[] SolveWithInitialGuess(LinearSystem system, double[]? initialGuess, Ilu0Preconditioner? preconditioner)
+        {
+            var matrix = GetMatrix(system);
+            return SolveWithInitialGuess(matrix, system.RightHandSide, initialGuess, preconditioner);
+        }
+
+        private double[] SolveWithInitialGuess(CSRMatrix matrix, double[] rightHandSide, double[]? initialGuess, Ilu0Preconditioner? preconditioner)
         {
             LastResult = null;
-            ValidateCommonArguments(system);
+            ValidateCommonArguments();
             ValidateBreakdownTolerance();
 
-            var matrix = system.Matrix;
-            var rightHandSide = system.RightHandSide;
-
             if (matrix.RowCount != matrix.ColumnCount)
-                throw new ArgumentException("BiCGStab применим только к квадратной матрице.", nameof(system));
+                throw new ArgumentException("BiCGStab can be applied only to a square matrix.", nameof(matrix));
 
             var size = matrix.RowCount;
             if (initialGuess != null && initialGuess.Length != size)
-                throw new ArgumentException("Размер начального приближения не соответствует размеру матрицы.", nameof(initialGuess));
+                throw new ArgumentException("The initial guess length does not match the matrix size.", nameof(initialGuess));
 
             if (preconditioner != null && !ReferenceEquals(preconditioner.Matrix, matrix))
-                throw new ArgumentException("Предобуславливатель построен для другой матрицы.", nameof(preconditioner));
+                throw new ArgumentException("The preconditioner was built for another matrix.", nameof(preconditioner));
 
             var x = initialGuess != null ? (double[])initialGuess.Clone() : new double[size];
             if (size == 0)
@@ -191,7 +194,7 @@ namespace CAESolvers
         private void EnsureNotBreakdown(double value, string valueName, int iteration)
         {
             if (!double.IsFinite(value) || Math.Abs(value) < BreakdownTolerance)
-                throw new InvalidOperationException($"BiCGStab breakdown: {valueName} равен нулю или не является конечным на итерации {iteration}.");
+                throw new InvalidOperationException($"BiCGStab breakdown: {valueName} is zero or non-finite at iteration {iteration}.");
         }
     }
 }

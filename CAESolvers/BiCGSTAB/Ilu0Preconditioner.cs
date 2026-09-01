@@ -16,7 +16,7 @@ namespace CAESolvers
             ArgumentNullException.ThrowIfNull(matrix);
 
             if (matrix.RowCount != matrix.ColumnCount)
-                throw new ArgumentException("ILU(0) применим только к квадратной матрице.", nameof(matrix));
+                throw new ArgumentException("ILU(0) can be applied only to a square matrix.", nameof(matrix));
             if (!double.IsFinite(pivotTolerance) || pivotTolerance <= 0.0)
                 throw new ArgumentOutOfRangeException(nameof(pivotTolerance));
 
@@ -55,11 +55,11 @@ namespace CAESolvers
             ArgumentNullException.ThrowIfNull(workspace);
 
             if (rightHandSide.Length != Size)
-                throw new ArgumentException("Размер правой части не соответствует размеру предобуславливателя.", nameof(rightHandSide));
+                throw new ArgumentException("The right-hand side length does not match the preconditioner size.", nameof(rightHandSide));
             if (result.Length != Size)
-                throw new ArgumentException("Размер результата не соответствует размеру предобуславливателя.", nameof(result));
+                throw new ArgumentException("The result length does not match the preconditioner size.", nameof(result));
             if (workspace.Length != Size)
-                throw new ArgumentException("Размер рабочего буфера не соответствует размеру предобуславливателя.", nameof(workspace));
+                throw new ArgumentException("The workspace length does not match the preconditioner size.", nameof(workspace));
 
             var rowPointers = Matrix.RowPointers;
             var columnIndices = Matrix.ColumnIndices;
@@ -102,7 +102,7 @@ namespace CAESolvers
                 }
 
                 if (result[row] < 0)
-                    throw new InvalidOperationException($"В строке {row} отсутствует диагональный элемент, необходимый для ILU(0).");
+                    throw new InvalidOperationException($"Row {row} does not contain the diagonal element required for ILU(0).");
             }
 
             return result;
@@ -162,7 +162,7 @@ namespace CAESolvers
         private void EnsurePivot(int row, double pivot)
         {
             if (!double.IsFinite(pivot) || Math.Abs(pivot) < PivotTolerance)
-                throw new InvalidOperationException($"Нулевой или недопустимый ведущий элемент U в строке {row} при построении ILU(0).");
+                throw new InvalidOperationException($"U has a zero or invalid pivot in row {row} while building ILU(0).");
         }
     }
 }

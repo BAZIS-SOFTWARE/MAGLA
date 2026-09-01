@@ -72,8 +72,8 @@ namespace CAESolvers
 
                 if (length > int.MaxValue)
                     throw new InvalidOperationException(
-                        $"Блок множителя суперузла {s} не представим одним массивом " +
-                        $"({length} элементов). Задача слишком плотная для прямого решателя.");
+                        $"Factor block of supernode {s} cannot be represented by a single array " +
+                        $"({length} elements). The problem is too dense for the direct solver.");
 
                 blockLengths[s] = (int)length;
 
