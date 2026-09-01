@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CAESolvers\CAESolvers.csproj" />
+    <ProjectReference Include="..\TaskSolverCore\TaskSolverCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>

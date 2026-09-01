@@ -9,10 +9,9 @@ namespace CAESolvers
     /// (типичный случай в проекте — глобальная матрица жёсткости МКЭ:
     /// упругость, теплопроводность и т.п.).
     ///
-    /// Предобуславливатель M = diag(A) применяется неявно на каждой
-    /// итерации — покомпонентным делением невязки на диагональ через
-    /// <see cref="SymmetricCSRMatrix.GetDiagonal"/> (доступ к диагонали
-    /// за O(1), как и задумано в этом классе для итерационных решателей).
+    /// Предобуславливатель M = diag(A) представлен отдельным классом
+    /// <see cref="JacobiPreconditioner"/>. Обратная диагональ строится один
+    /// раз и может переиспользоваться при решении систем с той же матрицей.
     /// Предобуславливание можно отключить через <see cref="UsePreconditioner"/>
     /// = false — тогда метод вырождается в классический CG без
     /// предобуславливания.
@@ -52,7 +51,7 @@ namespace CAESolvers
 
         public override double[] Solve(LinearSystem<SymmetricCSRMatrix> system)
         {
-            return Solve(system, null);
+            return Solve(system, null, null);
         }
 
         /// <summary>
@@ -61,6 +60,16 @@ namespace CAESolvers
         /// используется как начальное приближение x0 (иначе x0 = 0).
         /// </summary>
         public double[] Solve(LinearSystem<SymmetricCSRMatrix> system, double[]? initialGuess)
+        {
+            return Solve(system, initialGuess, null);
+        }
+
+        /// <summary>
+        /// Решает систему с возможностью переиспользовать готовый
+        /// предобуславливатель Якоби. Переданный предобуславливатель имеет
+        /// приоритет над <see cref="UsePreconditioner"/>.
+        /// </summary>
+        public double[] Solve(LinearSystem<SymmetricCSRMatrix> system, double[]? initialGuess, JacobiPreconditioner? preconditioner)
         {
             LastResult = null;
 
@@ -77,6 +86,9 @@ namespace CAESolvers
                     throw new ArgumentException(
                         $"Размер начального приближения {initialGuess.Length} не соответствует размеру матрицы {n}");
             }
+
+            if (preconditioner != null && !ReferenceEquals(preconditioner.Matrix, matrix))
+                throw new ArgumentException("Предобуславливатель построен для другой матрицы.", nameof(preconditioner));
 
             var x = initialGuess != null
                 ? (double[])initialGuess.Clone()
@@ -104,7 +116,11 @@ namespace CAESolvers
             if (rNorm <= residualThreshold)
                 return Complete(new IterativeSolverResult(x, 0, true, rNorm));
 
-            ApplyPreconditioner(matrix, r, z);
+            var activePreconditioner = preconditioner;
+            if (activePreconditioner == null && UsePreconditioner)
+                activePreconditioner = new JacobiPreconditioner(matrix);
+
+            ApplyPreconditioner(activePreconditioner, r, z);
             Array.Copy(z, p, n);
             var rzOld = Dot(r, z);
 
@@ -132,7 +148,7 @@ namespace CAESolvers
                     return Complete(
                         new IterativeSolverResult(x, iteration, true, rNorm));
 
-                ApplyPreconditioner(matrix, r, z);
+                ApplyPreconditioner(activePreconditioner, r, z);
                 var rzNew = Dot(r, z);
                 var beta = rzNew / rzOld;
 
@@ -153,25 +169,15 @@ namespace CAESolvers
         }
 
         /// <summary>
-        /// Применяет якоби-предобуславливатель: z = D^-1 r, где D — диагональ
-        /// матрицы. При UsePreconditioner = false просто копирует r в z
-        /// (предобуславливатель = единичная матрица). Результат пишется в
-        /// готовый буфер z, чтобы не выделять вектор на каждой итерации.
+        /// Применяет переданный предобуславливатель. При null просто копирует
+        /// source в result, что соответствует единичному предобуславливателю.
         /// </summary>
-        private void ApplyPreconditioner(
-            SymmetricCSRMatrix matrix, double[] r, double[] z)
+        private static void ApplyPreconditioner(JacobiPreconditioner? preconditioner, double[] source, double[] result)
         {
-            if (!UsePreconditioner)
-            {
-                Array.Copy(r, z, r.Length);
-                return;
-            }
-
-            for (var i = 0; i < r.Length; i++)
-            {
-                var d = matrix.GetDiagonal(i);
-                z[i] = Math.Abs(d) > 1e-300 ? r[i] / d : r[i];
-            }
+            if (preconditioner == null)
+                Array.Copy(source, result, source.Length);
+            else
+                preconditioner.Apply(source, result);
         }
 
         private double Dot(double[] a, double[] b)
