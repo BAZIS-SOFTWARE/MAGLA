@@ -70,6 +70,7 @@ namespace Tests
             Assert.IsFalse(result.Converged);
             Assert.AreEqual(1, result.Iterations);
             Assert.IsTrue(result.ResidualNorm > 0.0);
+            Assert.IsTrue(result.RelativeResidual > conjugateGradient.RelativeTolerance);
         }
 
         private static SymmetricCSRMatrix BuildTridiagonalMatrix(int size)

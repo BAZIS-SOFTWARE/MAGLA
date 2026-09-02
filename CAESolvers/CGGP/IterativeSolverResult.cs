@@ -7,13 +7,13 @@ namespace CAESolvers
     /// </summary>
     public class IterativeSolverResult
     {
-        public IterativeSolverResult(
-            double[] solution, int iterations, bool converged, double residualNorm)
+        public IterativeSolverResult(double[] solution, int iterations, bool converged, double residualNorm, double relativeResidual)
         {
             Solution = solution;
             Iterations = iterations;
             Converged = converged;
             ResidualNorm = residualNorm;
+            RelativeResidual = relativeResidual;
         }
 
         /// <summary>Найденное (или последнее полученное) приближение решения x.</summary>
@@ -30,5 +30,11 @@ namespace CAESolvers
 
         /// <summary>Норма невязки ||b - A x|| на момент останова.</summary>
         public double ResidualNorm { get; }
+
+        /// <summary>
+        /// Относительная норма невязки ||b - A x|| / ||b|| на момент
+        /// останова. При нулевой норме правой части знаменатель равен единице.
+        /// </summary>
+        public double RelativeResidual { get; }
     }
 }

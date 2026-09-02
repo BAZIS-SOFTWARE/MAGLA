@@ -27,6 +27,9 @@ namespace CAESolvers
         {
             if (!double.IsFinite(RelativeTolerance) || RelativeTolerance < 0.0)
                 throw new ArgumentOutOfRangeException(nameof(RelativeTolerance));
+
+            if (MaxIterations < 0)
+                throw new ArgumentOutOfRangeException(nameof(MaxIterations), "The maximum iteration count cannot be negative.");
         }
     }
 }

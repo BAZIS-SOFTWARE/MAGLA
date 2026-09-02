@@ -96,6 +96,7 @@ namespace Tests
             var result = solver.LastResult!;
 
             Assert.IsTrue(result.Converged);
+            Assert.IsTrue(result.RelativeResidual <= solver.RelativeTolerance);
 
             var residual = matrix.Multiply(solution);
             for (int i = 0; i < b.Length; i++)
@@ -127,6 +128,18 @@ namespace Tests
             {
                 Assert.ThrowsException<ArgumentException>(() => new LinearSystem(matrix, b));
             }
+        }
+
+        [TestMethod]
+        public void Solve_NegativeMaxIterations_Throws()
+        {
+            var matrix = BuildDiagonalMatrix(new[] { 1.0 });
+            var system = new LinearSystem(matrix, new[] { 1.0 });
+            var solver = new ConjugateGradientGaussPreSolver { MaxIterations = -1 };
+
+            var exception = Assert.ThrowsException<ArgumentOutOfRangeException>(() => solver.Solve(system));
+
+            Assert.AreEqual(nameof(solver.MaxIterations), exception.ParamName);
         }
     }
 }

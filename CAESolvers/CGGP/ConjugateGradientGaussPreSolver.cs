@@ -97,10 +97,12 @@ namespace CAESolvers
                 ? (double[])initialGuess.Clone()
                 : new double[n];
 
+            var rightHandSideNorm = CalculateNorm(rightHandSide);
+            var residualScale = rightHandSideNorm > 0.0 ? rightHandSideNorm : 1.0;
             if (n == 0)
-                return Complete(new IterativeSolverResult(x, 0, true, 0.0));
+                return Complete(x, 0, 0.0, residualScale);
 
-            var residualThreshold = RelativeTolerance * CalculateNorm(rightHandSide);
+            var residualThreshold = RelativeTolerance * residualScale;
 
             // Рабочие векторы на весь вызов: невязка r, предобусловленная
             // невязка z, направление спуска p и произведение A * p.
@@ -117,7 +119,7 @@ namespace CAESolvers
             var rNorm = CalculateNorm(r);
 
             if (rNorm <= residualThreshold)
-                return Complete(new IterativeSolverResult(x, 0, true, rNorm));
+                return Complete(x, 0, rNorm, residualScale);
 
             var activePreconditioner = preconditioner;
             if (activePreconditioner == null && UsePreconditioner)
@@ -148,8 +150,7 @@ namespace CAESolvers
 
                 rNorm = CalculateNorm(r);
                 if (rNorm <= residualThreshold)
-                    return Complete(
-                        new IterativeSolverResult(x, iteration, true, rNorm));
+                    return Complete(x, iteration, rNorm, residualScale);
 
                 ApplyPreconditioner(activePreconditioner, r, z);
                 var rzNew = Dot(r, z);
@@ -161,12 +162,14 @@ namespace CAESolvers
                 rzOld = rzNew;
             }
 
-            return Complete(
-                new IterativeSolverResult(x, maxIterations, false, rNorm));
+            return Complete(x, maxIterations, rNorm, residualScale);
         }
 
-        private double[] Complete(IterativeSolverResult result)
+        private double[] Complete(double[] solution, int iterations, double residualNorm, double residualScale)
         {
+            var relativeResidual = residualNorm / residualScale;
+            var converged = relativeResidual <= RelativeTolerance;
+            var result = new IterativeSolverResult(solution, iterations, converged, residualNorm, relativeResidual);
             LastResult = result;
             return result.Solution;
         }

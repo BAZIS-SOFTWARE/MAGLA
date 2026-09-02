@@ -22,8 +22,10 @@ namespace Tests
             for (var index = 0; index < solution.Length; index++)
                 Assert.AreEqual(CgComparisonData.ExactSolution[index], solution[index], 1e-10);
 
-            var relativeResidual = result.ResidualNorm / Norm(CgComparisonData.RightHandSide);
-            Assert.IsTrue(relativeResidual <= solver.RelativeTolerance);
+            var rightHandSideNorm = Norm(CgComparisonData.RightHandSide);
+            var expectedRelativeResidual = result.ResidualNorm / rightHandSideNorm;
+            Assert.AreEqual(expectedRelativeResidual, result.RelativeResidual, 1e-15);
+            Assert.IsTrue(result.RelativeResidual <= solver.RelativeTolerance);
         }
 
         [TestMethod]
@@ -69,6 +71,18 @@ namespace Tests
             CollectionAssert.AreEqual(expected, solution);
             Assert.AreEqual(0, solver.LastResult!.Iterations);
             Assert.IsTrue(solver.LastResult.Converged);
+        }
+
+        [TestMethod]
+        public void Solve_NegativeMaxIterations_Throws()
+        {
+            var matrix = BuildNonsymmetricMatrix();
+            var system = new LinearSystem(matrix, new double[matrix.RowCount]);
+            var solver = new BiCgStabSolver { MaxIterations = -1 };
+
+            var exception = Assert.ThrowsException<ArgumentOutOfRangeException>(() => solver.Solve(system));
+
+            Assert.AreEqual(nameof(solver.MaxIterations), exception.ParamName);
         }
 
         private static CSRMatrix BuildNonsymmetricMatrix()

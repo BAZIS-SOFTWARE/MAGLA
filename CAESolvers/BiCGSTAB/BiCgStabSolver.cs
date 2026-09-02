@@ -51,8 +51,10 @@ namespace CAESolvers
                 throw new ArgumentException("The preconditioner was built for another matrix.", nameof(preconditioner));
 
             var x = initialGuess != null ? (double[])initialGuess.Clone() : new double[size];
+            var rightHandSideNorm = CalculateNorm(rightHandSide);
+            var residualScale = rightHandSideNorm > 0.0 ? rightHandSideNorm : 1.0;
             if (size == 0)
-                return Complete(new IterativeSolverResult(x, 0, true, 0.0));
+                return Complete(x, 0, 0.0, residualScale);
 
             var residual = new double[size];
             var shadowResidual = new double[size];
@@ -70,12 +72,11 @@ namespace CAESolvers
 
             Array.Copy(residual, shadowResidual, size);
 
-            var rightHandSideNorm = CalculateNorm(rightHandSide);
-            var residualThreshold = RelativeTolerance * (rightHandSideNorm > 0.0 ? rightHandSideNorm : 1.0);
+            var residualThreshold = RelativeTolerance * residualScale;
             var residualNorm = CalculateNorm(residual);
 
             if (residualNorm <= residualThreshold)
-                return Complete(new IterativeSolverResult(x, 0, true, residualNorm));
+                return Complete(x, 0, residualNorm, residualScale);
 
             var activePreconditioner = preconditioner;
             if (activePreconditioner == null && UsePreconditioner)
@@ -119,7 +120,7 @@ namespace CAESolvers
                     for (var index = 0; index < size; index++)
                         x[index] += alpha * preconditionedDirection[index];
 
-                    return Complete(new IterativeSolverResult(x, iteration, true, intermediateNorm));
+                    return Complete(x, iteration, intermediateNorm, residualScale);
                 }
 
                 ApplyPreconditioner(activePreconditioner, intermediateResidual, preconditionedIntermediate, workspace);
@@ -138,16 +139,19 @@ namespace CAESolvers
 
                 residualNorm = CalculateNorm(residual);
                 if (residualNorm <= residualThreshold)
-                    return Complete(new IterativeSolverResult(x, iteration, true, residualNorm));
+                    return Complete(x, iteration, residualNorm, residualScale);
 
                 rhoPrevious = rho;
             }
 
-            return Complete(new IterativeSolverResult(x, maxIterations, false, residualNorm));
+            return Complete(x, maxIterations, residualNorm, residualScale);
         }
 
-        private double[] Complete(IterativeSolverResult result)
+        private double[] Complete(double[] solution, int iterations, double residualNorm, double residualScale)
         {
+            var relativeResidual = residualNorm / residualScale;
+            var converged = relativeResidual <= RelativeTolerance;
+            var result = new IterativeSolverResult(solution, iterations, converged, residualNorm, relativeResidual);
             LastResult = result;
             return result.Solution;
         }
